@@ -1,2 +1,69 @@
-# Full_Stack-2026-ft_torneio
-Sistema para gerenciar torneios e competições de baixa escala
+# 🏆 Full_Stack-2026-ft_torneio
+
+> Uma plataforma leve, rápida e em tempo real para gerenciar torneios e entreter estudantes!
+
+O **ft_torneio** nasceu para resolver aquela velha bagunça na hora de organizar campeonatos entre amigos da faculdade ou da escola. Chega de usar papel de pão ou planilhas complexas. Com uma interface simples e atualização em tempo real, organizar o próximo campeonato de FIFA, Counter-Strike, Xadrez ou Pingue-Pongue ficou muito mais divertido.
+
+---
+
+## 🚀 Tecnologias Utilizadas
+
+Para que o projeto fosse dinâmico e responsivo, escolhemos a "santíssima trindade" do tempo real:
+
+* **Frontend:** React (Interface moderna, rápida e componentizada)
+* **Backend:** Node.js (Robustez e escalabilidade no servidor)
+* **Comunicação:** Socket.io (O coração do projeto, garantindo que as atualizações dos placares e chaves aconteçam **ao vivo** para todos os usuários conectados)
+
+---
+
+## ✨ Funcionalidades Principais
+
+* 🔄 **Atualização em Tempo Real:** Altere o resultado em uma tela e veja a mágica acontecer em todas as outras sem precisar dar F5.
+* 📊 **Chaves Automatizadas:** Criação visual do chaveamento do torneio de forma simples.
+* 🎯 **Foco em Entretenimento:** Feito de estudante para estudante, com foco na resenha e na diversão.
+
+---
+
+## 🛠️ Como Rodar o Projeto na Sua Máquina
+
+Para colocar o torneio de pé no Lab da faculdade ou no seu PC, siga os passos abaixo:
+
+### Pré-requisitos
+Você vai precisar do **Node.js** e do **npm** (ou yarn) instalados.
+
+### 1. Clonar o Repositório
+```bash
+git clone https://github.com/Clube-Diva/Full_Stack-2026-ft_torneio.git
+cd Full_Stack-2026-ft_torneio
+```
+2. Configurar o Backend
+```bash
+# Entre na pasta do servidor (ajuste o caminho se necessário)
+cd backend
+
+# Instale as dependências
+npm install
+
+# Inicie o servidor
+npm start
+```
+3. Configurar o Frontend
+```bash
+# Abra um novo terminal e entre na pasta do cliente
+cd frontend
+
+# Instale as dependências
+npm install
+
+# Inicie a aplicação React
+npm start
+```
+Agora é só abrir http://localhost:3000 no seu navegador e começar a jogatina! 🎮
+
+## 🤝 Como Contribuir
+
+Achou algum erro ou possiveis melhorias, entre para o clube D.i.V.A. crie, melhore e aprenda.
+📝 Licença
+Este projeto está sob a licença MIT. Sinta-se livre para usar, modificar e rodar campeonatos na sua instituição!
+
+⭐ Gostou do projeto? Deixa uma estrelinha para motivar o time de dev!
