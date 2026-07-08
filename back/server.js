@@ -18,137 +18,94 @@ const io = new Server(server, {
   }
 });
 
-let estadoDoTorneio = [
+let estadoDoTorneio =
+  [
   {
     id: 1,
-    nextMatchId: 3,
-    tournamentRoundText: "Semifinal 1",
-    startTime: "14:00",
-    state: "DONE",
-    participants: [
+    nomeChave: "Fase Inicial",
+    nomeDoGrupo: "Grupo A",
+    partidas: [
       {
-        id: "player-1",
-        resultText: "2",
-        isWinner: true,
-        name: "Gabriel (FIFA Master)",
+        id: 1,
+        nome: "Partida 1",
+        horario: "18:00",
+        estado: "SCHEDULED",
+        jogadores: [
+          { id: 1, name: "Jogador 1" },
+          { id: 2, name: "Jogador 2" },
+          { id: 3, name: "Jogador 3" },
+          { id: 4, name: "Jogador 4" }
+        ]
       },
       {
-        id: "player-2",
-        resultText: "1",
-        isWinner: false,
-        name: "Lucas do TI",
+        id: 2,
+        nome: "Partida 2",
+        horario: "18:15",
+        estado: "SCHEDULED",
+        jogadores: [
+          { id: 5, name: "Jogador 5" },
+          { id: 6, name: "Jogador 6" },
+          { id: 7, name: "Jogador 7" },
+          { id: 8, name: "Jogador 8" }
+        ]
       },
-    ],
+      {
+        id: 3,
+        nome: "Partida 3",
+        horario: "18:30",
+        estado: "SCHEDULED",
+        jogadores: [
+          { id: 9, name: "Jogador 9" },
+          { id: 10, name: "Jogador 10" },
+          { id: 11, name: "Jogador 11" },
+          { id: 12, name: "Jogador 12" }
+        ]
+      }
+    ]
   },
   {
-    id: 2,
-    nextMatchId: 3,
-    tournamentRoundText: "Semifinal 2",
-    startTime: "14:30",
-    state: "DONE",
-    participants: [
+    id: 4,
+    NomeChave: "Grupo B - Fase Inicial",
+    partidas: [
       {
-        id: "player-3",
-        resultText: "0",
-        isWinner: false,
-        name: "Professor de Redes",
+        id: 4,
+        nome: "Partida 4",
+        horario: "18:45",
+        estado: "SCHEDULED",
+        jogadores: [
+          { id: 13, name: "Jogador 13" },
+          { id: 14, name: "Jogador 14" },
+          { id: 15, name: "Jogador 15" },
+          { id: 16, name: "Jogador 16" }
+        ]
       },
       {
-        id: "player-4",
-        resultText: "3",
-        isWinner: true,
-        name: "Ana (Veterana)",
+        id: 5,
+        nome: "Partida 5",
+        horario: "19:00",
+        estado: "SCHEDULED",
+        jogadores: [
+          { id: 17, name: "Jogador 17" },
+          { id: 18, name: "Jogador 18" },
+          { id: 19, name: "Jogador 19" },
+          { id: 20, name: "Jogador 20" }
+        ]
       },
-    ],
+      {
+        id: 6,
+        nome: "Partida 6",
+        horario: "19:15",
+        estado: "SCHEDULED",
+        jogadores: [
+          { id: 21, name: "Jogador 21" },
+          { id: 22, name: "Jogador 22" },
+          { id: 23, name: "Jogador 23" },
+          { id: 24, name: "Jogador 24" }
+        ]
+      }
+    ]
   },
-  {
-    id: 3,
-    nextMatchId: null,
-    tournamentRoundText: "Grande Final",
-    startTime: "15:30",
-    state: "SCHEDULED",
-    participants: [
-      {
-        id: "player-1",
-        resultText: null,
-        isWinner: false,
-        name: "Gabriel (FIFA Master)",
-      },
-      {
-        id: "player-4",
-        resultText: null,
-        isWinner: false,
-        name: "Ana (Veterana)",
-      },
-    ],
-  },
-];
-
-let estadoDoTorneio2 = [
-  {
-    id: 1,
-    nextMatchId: 3,
-    tournamentRoundText: "Semifinal 1",
-    startTime: "14:00",
-    state: "DONE",
-    participants: [
-      {
-        id: "player-1",
-        resultText: "2",
-        isWinner: true,
-        name: "Gabriel (FIFA Master) estado 2",
-      },
-      {
-        id: "player-2",
-        resultText: "1",
-        isWinner: false,
-        name: "Lucas do TI",
-      },
-    ],
-  },
-  {
-    id: 2,
-    nextMatchId: 3,
-    tournamentRoundText: "Semifinal 2",
-    startTime: "14:30",
-    state: "DONE",
-    participants: [
-      {
-        id: "player-3",
-        resultText: "0",
-        isWinner: false,
-        name: "Professor de Redes",
-      },
-      {
-        id: "player-4",
-        resultText: "3",
-        isWinner: true,
-        name: "Ana (Veterana)",
-      },
-    ],
-  },
-  {
-    id: 3,
-    nextMatchId: null,
-    tournamentRoundText: "Grande Final",
-    startTime: "15:30",
-    state: "SCHEDULED",
-    participants: [
-      {
-        id: "player-1",
-        resultText: null,
-        isWinner: false,
-        name: "Gabriel (FIFA Master) estado 2",
-      },
-      {
-        id: "player-4",
-        resultText: null,
-        isWinner: false,
-        name: "Ana (Veterana)",
-      },
-    ],
-  },
-];
+]
 
 io.on('connection', (socket) => {
   console.log(`⚡ Usuário conectado: ${socket.id}`);
@@ -157,7 +114,7 @@ io.on('connection', (socket) => {
 
   socket.on('atualizar_placar', (dadosDaPartida) => {
     console.log('Placar atualizado recebido:', dadosDaPartida);
-    io.emit('vagas_atualizadas', estadoDoTorneio2);
+    io.emit('vagas_atualizadas', estadoDoTorneio);
   });
 
   socket.on('disconnect', () => {
