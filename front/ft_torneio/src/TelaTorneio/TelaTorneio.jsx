@@ -9,38 +9,79 @@ const socket = io('http://localhost:4000', {
 export default function TelaTorneio() {
   const [conectado, setConectado] = useState(false);
   const [partidasDoTorneio, setPartidasDoTorneio] = useState([]);
+
   useEffect(() => {
-    socket.on('connect', () => {
+    const onConnect = () => {
       setConectado(true);
       console.log('⚡ Conectado ao servidor Socket.io!');
-    });
+    };
 
-    socket.on('vagas_atualizadas', (dados) => {
+    const onVagasAtualizadas = (dados) => {
       console.log('Dados recebidos do servidor:', dados);
-      setPartidasDoTorneio(dados);
-    });
+
+      if (Array.isArray(dados)) {
+        setPartidasDoTorneio(dados);
+      } else if (dados) {
+        setPartidasDoTorneio([dados]);
+      } else {
+        setPartidasDoTorneio([]);
+      }
+      console.log('Estado atualizado das partidas:', partidasDoTorneio);
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('vagas_atualizadas', onVagasAtualizadas);
 
     return () => {
-      socket.off('connect');
-      socket.off('vagas_atualizadas');
+      socket.off('connect', onConnect);
+      socket.off('vagas_atualizadas', onVagasAtualizadas);
     };
   }, []);
-//
-  return (
-    <div className="aling-torneio">
-       <p>{conectado ? 'Conectado ao servidor' : 'Conectando...'}</p>
-      {partidasDoTorneio.map((categoria) => (
-        <div key={categoria.id}>
-          <h2>{categoria.tournamentRoundText}</h2>
-          
-          <ul>
-            {categoria.participants.map((participant, index) => (
-              <li key={index}>{participant.name}</li>
-            ))}
-          </ul>
 
+return (
+    <div className="torneio-container">
+      <div className="status-badge">
+        <span className={conectado ? 'dot conectado' : 'dot desconectado'}></span>
+        <p>{conectado ? 'Conectado ao servidor' : 'Conectando...'}</p>
+      </div>
+
+      <h1 className="torneio-titulo">🏆 Chaves do Torneio</h1>
+
+      {partidasDoTorneio.length === 0 ? (
+        <p className="sem-dados">Nenhuma partida recebida ainda.</p>
+      ) : (
+        <div className="chaves-grid">
+          {partidasDoTorneio.map((chave) => (
+            <div key={chave.id} className="chave-card">
+              {/* CORRIGIDO: NomeChave com N maiúsculo conforme o seu JSON */}
+              <h3 className="chave-nome">{chave.nomeChave}</h3> 
+              
+              <div className="partidas-lista">
+                {chave.partidas?.map((partida) => (
+                  <div key={partida.id} className={`partida-card ${partida.estado.toLowerCase()}`}>
+                    <div className="partida-header">
+                      <strong>{partida.nome}</strong>
+                      <span className="partida-horario">{partida.horario}</span>
+                    </div>
+                    
+                    <span className={`status-tag ${partida.estado.toLowerCase()}`}>
+                      {partida.estado} 
+                    </span>
+                    
+                    <ul className="jogadores-lista">
+                      {partida.jogadores?.map((jogador) => (
+                        <li key={jogador.id} className="jogador-item">
+                          🎮 {jogador.name}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-      ))}
+      )}
     </div>
   );
 }
