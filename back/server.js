@@ -18,8 +18,7 @@ const io = new Server(server, {
   }
 });
 
-let estadoDoTorneio =
-  [
+let estadoDoTorneio = [
   {
     id: 1,
     nomeChave: "Fase Inicial",
@@ -31,10 +30,10 @@ let estadoDoTorneio =
         horario: "18:00",
         estado: "SCHEDULED",
         jogadores: [
-          { id: 1, name: "Jogador 1" },
-          { id: 2, name: "Jogador 2" },
-          { id: 3, name: "Jogador 3" },
-          { id: 4, name: "Jogador 4" }
+          { id: 1, name: "Jogador 1", score: 0 },
+          { id: 2, name: "Jogador 2", score: 0 },
+          { id: 3, name: "Jogador 3", score: 0 },
+          { id: 4, name: "Jogador 4", score: 0 }
         ]
       },
       {
@@ -43,10 +42,10 @@ let estadoDoTorneio =
         horario: "18:15",
         estado: "SCHEDULED",
         jogadores: [
-          { id: 5, name: "Jogador 5" },
-          { id: 6, name: "Jogador 6" },
-          { id: 7, name: "Jogador 7" },
-          { id: 8, name: "Jogador 8" }
+          { id: 5, name: "Jogador 5", score: 0 },
+          { id: 6, name: "Jogador 6", score: 0 },
+          { id: 7, name: "Jogador 7", score: 0 },
+          { id: 8, name: "Jogador 8", score: 0 }
         ]
       },
       {
@@ -55,17 +54,17 @@ let estadoDoTorneio =
         horario: "18:30",
         estado: "SCHEDULED",
         jogadores: [
-          { id: 9, name: "Jogador 9" },
-          { id: 10, name: "Jogador 10" },
-          { id: 11, name: "Jogador 11" },
-          { id: 12, name: "Jogador 12" }
+          { id: 9, name: "Jogador 9", score: 0 },
+          { id: 10, name: "Jogador 10", score: 0 },
+          { id: 11, name: "Jogador 11", score: 0 },
+          { id: 12, name: "Jogador 12", score: 0 }
         ]
       }
     ]
   },
   {
     id: 4,
-    NomeChave: "Grupo B - Fase Inicial",
+    nomeChave: "Grupo B - Fase Inicial",
     partidas: [
       {
         id: 4,
@@ -73,10 +72,10 @@ let estadoDoTorneio =
         horario: "18:45",
         estado: "SCHEDULED",
         jogadores: [
-          { id: 13, name: "Jogador 13" },
-          { id: 14, name: "Jogador 14" },
-          { id: 15, name: "Jogador 15" },
-          { id: 16, name: "Jogador 16" }
+          { id: 13, name: "Jogador 13", score: 0 },
+          { id: 14, name: "Jogador 14", score: 0 },
+          { id: 15, name: "Jogador 15", score: 0 },
+          { id: 16, name: "Jogador 16", score: 0 }
         ]
       },
       {
@@ -85,10 +84,10 @@ let estadoDoTorneio =
         horario: "19:00",
         estado: "SCHEDULED",
         jogadores: [
-          { id: 17, name: "Jogador 17" },
-          { id: 18, name: "Jogador 18" },
-          { id: 19, name: "Jogador 19" },
-          { id: 20, name: "Jogador 20" }
+          { id: 17, name: "Jogador 17", score: 0 },
+          { id: 18, name: "Jogador 18", score: 0 },
+          { id: 19, name: "Jogador 19", score: 0 },
+          { id: 20, name: "Jogador 20", score: 0 }
         ]
       },
       {
@@ -97,15 +96,15 @@ let estadoDoTorneio =
         horario: "19:15",
         estado: "SCHEDULED",
         jogadores: [
-          { id: 21, name: "Jogador 21" },
-          { id: 22, name: "Jogador 22" },
-          { id: 23, name: "Jogador 23" },
-          { id: 24, name: "Jogador 24" }
+          { id: 21, name: "Jogador 21", score: 0 },
+          { id: 22, name: "Jogador 22", score: 0 },
+          { id: 23, name: "Jogador 23", score: 0 },
+          { id: 24, name: "Jogador 24", score: 0 }
         ]
       }
     ]
-  },
-]
+  }
+];
 
 io.on('connection', (socket) => {
   console.log(`⚡ Usuário conectado: ${socket.id}`);
@@ -113,7 +112,20 @@ io.on('connection', (socket) => {
   socket.emit('vagas_atualizadas', estadoDoTorneio);
 
   socket.on('atualizar_placar', (dadosDaPartida) => {
-    console.log('Placar atualizado recebido:', dadosDaPartida);
+    const { partidaId, jogadorId, pontos } = dadosDaPartida;
+
+    for (const grupo of estadoDoTorneio) {
+      const partida = grupo.partidas.find(p => p.id === partidaId);
+      if (!partida) continue;
+
+      const jogador = partida.jogadores.find(j => j.id === jogadorId);
+      if (jogador) {
+        jogador.score += pontos;
+      }
+      break;
+    }
+
+    console.log('Placar atualizado:', dadosDaPartida);
     io.emit('vagas_atualizadas', estadoDoTorneio);
   });
 
