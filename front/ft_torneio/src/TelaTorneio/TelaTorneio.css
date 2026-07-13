@@ -185,3 +185,96 @@ body {
   text-align: center;
   font-weight: 700;
 }
+
+.progressao-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.bracket-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.fase-card {
+  background: #121214;
+  border: 1px solid #323238;
+  border-radius: 10px;
+  padding: 14px;
+}
+
+.fase-card h3 {
+  margin-top: 0;
+  margin-bottom: 10px;
+  color: #04d361;
+}
+
+.vencedor-badge {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #82ffb1;
+}
+
+.fase-origem {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  color: #8d8d99;
+}
+
+.match-jogadores {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.botao-jogador,
+.jogador-vazio {
+  width: 100%;
+  text-align: left;
+  border: 1px solid #323238;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #202024;
+  color: #e1e1e6;
+}
+
+.botao-jogador:nth-child(odd) {
+  border-left: 3px solid #04d361;
+}
+
+.botao-jogador:nth-child(even) {
+  border-left: 3px solid #8257e5;
+}
+
+.botao-jogador {
+  cursor: pointer;
+}
+
+.botao-jogador:hover {
+  border-color: #04d361;
+}
+
+.botao-jogador.selecionado {
+  background: #015f27;
+  border-color: #04d361;
+  color: #fff;
+}
+
+.status-tag.finalizada {
+  background: #4c299e;
+  color: #fff;
+}
+
+.status-tag.em_andamento {
+  background: #015f27;
+  color: #fff;
+}
+
+.status-tag.pending {
+  background: #633b00;
+  color: #fff;
+}
