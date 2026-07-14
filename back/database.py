@@ -90,3 +90,50 @@ def popular_dados_iniciais():
     conn.commit()
     conn.close()
 
+def buscar_estado_do_torneio():
+    conn = conectar()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT * FROM grupos")
+    grupos = cursor.fetchall()
+
+    resultado = []
+    for grupo in grupos:
+        cursor.execute("SELECT * FROM partidas WHERE grupo_id = ?", (grupo["id"],))
+        partidas = cursor.fetchall()
+
+        lista_partidas = []
+        for partida in partidas:
+            cursor.execute("SELECT * FROM jogadores WHERE partida_id = ?", (partida["id"],))
+            jogadores = cursor.fetchall()
+
+            lista_partidas.append({
+                "id": partida["id"],
+                "nome": partida["nome"],
+                "horario": partida["horario"],
+                "estado": partida["estado"],
+                "jogadores": [dict(j) for j in jogadores]
+            })
+
+        resultado.append({
+            "id": grupo["id"],
+            "nomeChave": grupo["nome_chave"],
+            "nomeDoGrupo": grupo["nome_do_grupo"],
+            "partidas": lista_partidas
+        })
+
+    conn.close()
+    return resultado
+
+
+def atualizar_score_jogador(partida_id, jogador_id, pontos):
+    conn = conectar()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "UPDATE jogadores SET score = score + ? WHERE id = ? AND partida_id = ?",
+        (pontos, jogador_id, partida_id)
+    )
+
+    conn.commit()
+    conn.close()
