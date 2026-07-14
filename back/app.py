@@ -20,8 +20,6 @@ estado_do_torneio: list[dict[str, Any]] = [
                 "jogadores": [
                     {"id": 1, "name": "Jogador 1", "score": 0},
                     {"id": 2, "name": "Jogador 2", "score": 0},
-                    {"id": 3, "name": "Jogador 3", "score": 0},
-                    {"id": 4, "name": "Jogador 4", "score": 0},
                 ],
             },
             {
@@ -30,10 +28,8 @@ estado_do_torneio: list[dict[str, Any]] = [
                 "horario": "18:15",
                 "estado": "SCHEDULED",
                 "jogadores": [
-                    {"id": 5, "name": "Jogador 5", "score": 0},
-                    {"id": 6, "name": "Jogador 6", "score": 0},
-                    {"id": 7, "name": "Jogador 7", "score": 0},
-                    {"id": 8, "name": "Jogador 8", "score": 0},
+                    {"id": 3, "name": "Jogador 3", "score": 0},
+                    {"id": 4, "name": "Jogador 4", "score": 0},
                 ],
             },
             {
@@ -42,10 +38,8 @@ estado_do_torneio: list[dict[str, Any]] = [
                 "horario": "18:30",
                 "estado": "SCHEDULED",
                 "jogadores": [
-                    {"id": 9, "name": "Jogador 9", "score": 0},
-                    {"id": 10, "name": "Jogador 10", "score": 0},
-                    {"id": 11, "name": "Jogador 11", "score": 0},
-                    {"id": 12, "name": "Jogador 12", "score": 0},
+                    {"id": 5, "name": "Jogador 5", "score": 0},
+                    {"id": 6, "name": "Jogador 6", "score": 0},
                 ],
             },
         ],
@@ -60,10 +54,8 @@ estado_do_torneio: list[dict[str, Any]] = [
                 "horario": "18:45",
                 "estado": "SCHEDULED",
                 "jogadores": [
-                    {"id": 13, "name": "Jogador 13", "score": 0},
-                    {"id": 14, "name": "Jogador 14", "score": 0},
-                    {"id": 15, "name": "Jogador 15", "score": 0},
-                    {"id": 16, "name": "Jogador 16", "score": 0},
+                    {"id": 7, "name": "Jogador 7", "score": 0},
+                    {"id": 8, "name": "Jogador 8", "score": 0},
                 ],
             },
             {
@@ -72,10 +64,8 @@ estado_do_torneio: list[dict[str, Any]] = [
                 "horario": "19:00",
                 "estado": "SCHEDULED",
                 "jogadores": [
-                    {"id": 17, "name": "Jogador 17", "score": 0},
-                    {"id": 18, "name": "Jogador 18", "score": 0},
-                    {"id": 19, "name": "Jogador 19", "score": 0},
-                    {"id": 20, "name": "Jogador 20", "score": 0},
+                    {"id": 9, "name": "Jogador 9", "score": 0},
+                    {"id": 10, "name": "Jogador 10", "score": 0},
                 ],
             },
             {
@@ -84,10 +74,8 @@ estado_do_torneio: list[dict[str, Any]] = [
                 "horario": "19:15",
                 "estado": "SCHEDULED",
                 "jogadores": [
-                    {"id": 21, "name": "Jogador 21", "score": 0},
-                    {"id": 22, "name": "Jogador 22", "score": 0},
-                    {"id": 23, "name": "Jogador 23", "score": 0},
-                    {"id": 24, "name": "Jogador 24", "score": 0},
+                    {"id": 11, "name": "Jogador 11", "score": 0},
+                    {"id": 12, "name": "Jogador 12", "score": 0},
                 ],
             },
         ],
@@ -123,16 +111,21 @@ async def atualizar_placar(sid, dados_da_partida):
     partida_id = dados_da_partida.get("partidaId")
     jogador_id = dados_da_partida.get("jogadorId")
     pontos = dados_da_partida.get("pontos", 0)
+    novo_estado_do_torneio = dados_da_partida.get("novoEstadoDoTorneio")
 
-    for grupo in estado_do_torneio:
-        partida = next((p for p in grupo["partidas"] if p["id"] == partida_id), None)
-        if partida is None:
-            continue
+    if isinstance(novo_estado_do_torneio, list):
+        estado_do_torneio.clear()
+        estado_do_torneio.extend(novo_estado_do_torneio)
+    else:
+        for grupo in estado_do_torneio:
+            partida = next((p for p in grupo["partidas"] if p["id"] == partida_id), None)
+            if partida is None:
+                continue
 
-        jogador = next((j for j in partida["jogadores"] if j["id"] == jogador_id), None)
-        if jogador is not None:
-            jogador["score"] += pontos
-        break
+            jogador = next((j for j in partida["jogadores"] if j["id"] == jogador_id), None)
+            if jogador is not None:
+                jogador["score"] += pontos
+            break
 
     print(f"Placar atualizado: {dados_da_partida}")
     await sio.emit("vagas_atualizadas", estado_do_torneio)
