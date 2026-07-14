@@ -29,7 +29,9 @@ Para que o projeto fosse dinâmico e responsivo, escolhemos a "santíssima trind
 Para colocar o torneio de pé no Lab da faculdade ou no seu PC, siga os passos abaixo:
 
 ### Pré-requisitos
-Você vai precisar do **Node.js** e do **npm** (ou yarn) instalados.
+Você vai precisar do **Node.js** e do **npm** instalados.
+
+O frontend usa **Node 20.19.0**. Se o seu ambiente estiver com uma versão mais antiga, os scripts do front baixam e usam essa versão automaticamente na primeira execução.
 
 ### 1. Clonar o Repositório
 ```bash
