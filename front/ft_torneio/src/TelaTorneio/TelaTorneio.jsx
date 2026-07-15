@@ -42,7 +42,7 @@ function TelaTorneio({ isAdmin = true }) {
   const socketRef = useRef(null)
 
   useEffect(() => {
-    const socket = io('http://localhost:4001', {
+    const socket = io('http://localhost:4002', {
       path: '/socket.io',
       transports: ['websocket'],
     })

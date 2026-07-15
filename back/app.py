@@ -133,4 +133,4 @@ app = socketio.ASGIApp(sio, other_asgi_app=fastapi_app, socketio_path="socket.io
 
 
 if __name__ == "__main__":
-    uvicorn.run("app:app", host="127.0.0.1", port=4001, reload=True)
+    uvicorn.run("app:app", host="127.0.0.1", port=4002, reload=True)
