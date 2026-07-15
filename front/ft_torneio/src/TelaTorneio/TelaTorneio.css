@@ -1,280 +1,289 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #07111f;
+  color: #f4f7fb;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 body {
-  background-color: #121214;
-  color: #e1e1e6;
-  font-family: sans-serif;
   margin: 0;
+  background: linear-gradient(135deg, #07111f 0%, #121a2d 100%);
 }
 
-.torneio-container {
-  padding: 40px;
-  max-width: 1200px;
-  margin: 0 auto;
+button,
+input {
+  font: inherit;
 }
 
-.painel-teste {
-  background: linear-gradient(180deg, #202024 0%, #17171a 100%);
-  border: 1px solid #323238;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 24px;
+.torneio-shell {
+  min-height: 100vh;
+  padding: 24px;
+  background: linear-gradient(135deg, #07111f 0%, #121a2d 100%);
 }
 
-.painel-teste h2 {
-  margin: 0 0 8px 0;
-}
-
-.painel-teste p {
-  margin: 0 0 16px 0;
-  color: #c4c4cc;
-}
-
-.painel-campos {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
-}
-
-.painel-campos label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 0.9rem;
-  color: #e1e1e6;
-}
-
-.painel-campos input {
-  background: #121214;
-  color: #e1e1e6;
-  border: 1px solid #323238;
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.painel-acoes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.painel-acoes button {
-  border: 0;
-  border-radius: 8px;
-  padding: 10px 16px;
-  background: #04d361;
-  color: #121214;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.painel-acoes .botao-secundario {
-  background: #323238;
-  color: #e1e1e6;
-}
-
-.status-envio {
-  margin-top: 14px;
-  color: #82ffb1;
-}
-
-.torneio-titulo {
-  text-align: center;
-  margin-bottom: 40px;
-}
-
-.status-badge {
+.torneio-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #202024;
-  padding: 5px 15px;
-  border-radius: 20px;
-  width: fit-content;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 20px;
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-.dot.conectado { background-color: #04d361; }
-.dot.desconectado { background-color: #f75a68; }
-
-/* Grid que separa as Chaves/Grupos em colunas */
-.chaves-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 24px;
+.eyebrow {
+  margin: 0 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.8rem;
+  color: #79a7ff;
 }
 
-.chave-card {
-  background-color: #202024;
-  padding: 20px;
-  border-radius: 8px;
-  border: 1px solid #323238;
+.torneio-header h1 {
+  margin: 0;
+  font-size: 2rem;
 }
 
-.chave-nome {
-  margin-top: 0;
-  border-bottom: 2px solid #323238;
-  padding-bottom: 10px;
-  color: #04d361;
+.subtitle {
+  margin: 6px 0 0;
+  color: #8ea1bd;
 }
 
-.partidas-lista {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 20px;
-}
-
-.partida-card {
-  background-color: #121214;
-  padding: 15px;
-  border-radius: 6px;
-  border-left: 4px solid #7c7c8a;
-}
-
-/* Borda dinâmica baseada no estado que conversamos! */
-.partida-card.live { border-left-color: #04d361; }
-.partida-card.scheduled { border-left-color: #ff9000; }
-.partida-card.done { border-left-color: #8257e5; }
-
-.partida-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
-}
-
-.partida-horario {
-  font-size: 0.85rem;
-  color: #8d8d99;
-}
-
-.status-tag {
-  font-size: 0.75rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: bold;
-}
-.status-tag.live { background: #015f27; color: #fff; }
-.status-tag.scheduled { background: #633b00; color: #fff; }
-.status-tag.done { background: #4c299e; color: #fff; }
-
-.jogadores-lista {
-  list-style: none;
-  padding: 0;
-  margin: 15px 0 0 0;
-}
-
-.jogador-item {
-  padding: 6px 0;
-  border-bottom: 1px solid #202024;
-  font-size: 0.9rem;
-}
-
-.jogador-score {
-  display: inline-block;
-  margin-left: 8px;
-  min-width: 24px;
-  padding: 2px 8px;
+.status-badge {
+  padding: 10px 16px;
   border-radius: 999px;
-  background: #323238;
-  color: #04d361;
-  text-align: center;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.status-badge.online {
+  background: rgba(41, 182, 111, 0.16);
+  color: #7ce7a9;
+}
+
+.status-badge.offline {
+  background: rgba(255, 87, 87, 0.16);
+  color: #ff9a9a;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.advance-btn,
+.finish-btn {
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.advance-btn:hover,
+.finish-btn:hover {
+  transform: translateY(-1px);
+}
+
+.advance-btn {
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #4772ff, #7f5cff);
+  color: white;
   font-weight: 700;
 }
 
-.progressao-grid {
+.helper-text {
+  margin: 0;
+  color: #8ea1bd;
+}
+
+.chaves-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(4, minmax(250px, 1fr));
+  gap: 18px;
 }
 
-.bracket-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 16px;
+.chave-card {
+  background: rgba(10, 18, 35, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  padding: 16px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
 }
 
-.fase-card {
-  background: #121214;
-  border: 1px solid #323238;
-  border-radius: 10px;
-  padding: 14px;
+.chave-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
-.fase-card h3 {
-  margin-top: 0;
-  margin-bottom: 10px;
-  color: #04d361;
+.chave-header h2 {
+  margin: 0;
+  font-size: 1rem;
 }
 
-.vencedor-badge {
-  margin-top: 6px;
+.chave-header span {
+  color: #7b8aa7;
   font-size: 0.8rem;
-  color: #82ffb1;
 }
 
-.fase-origem {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.75rem;
-  color: #8d8d99;
-}
-
-.match-jogadores {
+.partidas-list {
   display: grid;
-  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.partida-card {
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.partida-card.live {
+  border-color: rgba(94, 119, 255, 0.3);
+}
+
+.partida-card.done {
+  border-color: rgba(41, 182, 111, 0.3);
+}
+
+.partida-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   gap: 8px;
-  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
-.botao-jogador,
-.jogador-vazio {
-  width: 100%;
-  text-align: left;
-  border: 1px solid #323238;
+.status-pill {
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+
+.status-pill.live {
+  background: rgba(94, 119, 255, 0.16);
+  color: #8fb0ff;
+}
+
+.status-pill.done {
+  background: rgba(41, 182, 111, 0.16);
+  color: #83f1b1;
+}
+
+.jogadores-list {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.jogador-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.jogador-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.player-name {
+  font-weight: 600;
+}
+
+.bye-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 188, 66, 0.16);
+  color: #ffce6c;
+  font-size: 0.72rem;
+}
+
+.score-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.score-controls button {
+  width: 28px;
+  height: 28px;
+  border: none;
   border-radius: 8px;
-  padding: 8px 10px;
-  background: #202024;
-  color: #e1e1e6;
-}
-
-.botao-jogador:nth-child(odd) {
-  border-left: 3px solid #04d361;
-}
-
-.botao-jogador:nth-child(even) {
-  border-left: 3px solid #8257e5;
-}
-
-.botao-jogador {
+  background: #1d2a45;
+  color: white;
   cursor: pointer;
 }
 
-.botao-jogador:hover {
-  border-color: #04d361;
+.score-controls input {
+  width: 54px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: #0f1729;
+  color: white;
+  text-align: center;
 }
 
-.botao-jogador.selecionado {
-  background: #015f27;
-  border-color: #04d361;
-  color: #fff;
+.finish-btn {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #1f8f5c;
+  color: white;
+  font-weight: 700;
 }
 
-.status-tag.finalizada {
-  background: #4c299e;
-  color: #fff;
+.winner-text {
+  margin: 0 0 8px;
+  color: #83f1b1;
+  font-size: 0.9rem;
 }
 
-.status-tag.em_andamento {
-  background: #015f27;
-  color: #fff;
+.empty-state,
+.empty-state-card {
+  color: #8ea1bd;
+  text-align: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.status-tag.pending {
-  background: #633b00;
-  color: #fff;
+.empty-state-card {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1200px) {
+  .chaves-grid {
+    grid-template-columns: repeat(2, minmax(250px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .torneio-shell {
+    padding: 16px;
+  }
+
+  .torneio-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chaves-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .jogador-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

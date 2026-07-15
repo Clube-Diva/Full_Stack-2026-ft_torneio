@@ -1,426 +1,335 @@
-import React, { useEffect, useState } from 'react';
-import './TelaTorneio.css';
-import { io } from 'socket.io-client';
+import { useEffect, useRef, useState } from 'react'
+import { io } from 'socket.io-client'
 
-const socket = io('http://localhost:4001', {
-  path: '/socket.io',
-});
+import './TelaTorneio.css'
 
-const normalizarDadosDoServidor = (dados) => {
-  if (Array.isArray(dados)) {
-    return dados;
-  }
+const CHAVES_BASE = ['Chave A', 'Chave B', 'Chave C', 'Chave D']
 
-  return dados ? [dados] : [];
-};
+const getNextPhaseName = (currentName = '') => {
+  const normalized = currentName.toLowerCase()
 
-const criarJogadoresBase = (quantidade, dadosDoServidor = []) => {
-  const jogadoresDoServidor = (dadosDoServidor ?? []).flatMap((chave) =>
-    (chave.partidas ?? []).flatMap((partida) =>
-      (partida.jogadores ?? []).map((jogador) => ({
-        ...jogador,
-        partidaOrigem: partida.nome,
-      }))
-    )
-  );
+  if (normalized.includes('oitavas')) return 'Quartas'
+  if (normalized.includes('quartas')) return 'Semis'
+  if (normalized.includes('semis')) return 'Final'
+  return 'Quartas'
+}
 
-  if (jogadoresDoServidor.length >= quantidade) {
-    return jogadoresDoServidor.slice(0, quantidade).map((jogador, index) => ({
-      ...jogador,
-      id: jogador.id ?? index + 1,
-      name: jogador.name ?? `Jogador ${index + 1}`,
-      score: jogador.score ?? 0,
-    }));
-  }
+const getPhaseName = (value = '') => {
+  const normalized = value.toLowerCase()
 
-  const jogadoresGerados = Array.from({ length: quantidade - jogadoresDoServidor.length }, (_, index) => ({
-    id: 1000 + index + 1,
-    name: `Jogador ${jogadoresDoServidor.length + index + 1}`,
-    score: 0,
-    partidaOrigem: 'Entrada automática',
-  }));
+  if (normalized.includes('final')) return 'Final'
+  if (normalized.includes('semis')) return 'Semis'
+  if (normalized.includes('quartas')) return 'Quartas'
+  if (normalized.includes('oitavas')) return 'Oitavas'
+  return ''
+}
 
-  return [
-    ...jogadoresDoServidor.map((jogador, index) => ({
-      ...jogador,
-      id: jogador.id ?? index + 1,
-      name: jogador.name ?? `Jogador ${index + 1}`,
-      score: jogador.score ?? 0,
-    })),
-    ...jogadoresGerados,
-  ];
-};
+const getPhaseRank = (value = '') => {
+  const phaseName = getPhaseName(value)
 
-const criarBracketDoTorneio = (participantes) => {
-  const jogadores = participantes.map((jogador, index) => ({
-    ...jogador,
-    id: jogador.id ?? index + 1,
-    name: jogador.name ?? `Jogador ${index + 1}`,
-    score: jogador.score ?? 0,
-  }));
+  if (phaseName === 'Oitavas') return 1
+  if (phaseName === 'Quartas') return 2
+  if (phaseName === 'Semis') return 3
+  if (phaseName === 'Final') return 4
+  return 0
+}
 
-  const partidasDaPrimeiraFase = [];
-  for (let index = 0; index < jogadores.length; index += 4) {
-    const grupo = jogadores.slice(index, index + 4);
+const normalizeState = (value) => (Array.isArray(value) ? value : [])
 
-    partidasDaPrimeiraFase.push({
-      id: `rodada-1-${partidasDaPrimeiraFase.length + 1}`,
-      round: 1,
-      nome: `Partida ${partidasDaPrimeiraFase.length + 1}`,
-      jogadores: grupo,
-      estado: 'PENDING',
-      vencedores: [],
-      vencedorId: null,
-      vencedorName: null,
-    });
-  }
-
-  const rodadas = [partidasDaPrimeiraFase];
-  let partidasAtuais = partidasDaPrimeiraFase;
-  let rodadaAtual = 1;
-
-  while (partidasAtuais.length > 1) {
-    rodadaAtual += 1;
-    const proximaRodada = Array.from({ length: Math.ceil(partidasAtuais.length / 2) }, (_, index) => ({
-      id: `rodada-${rodadaAtual}-${index + 1}`,
-      round: rodadaAtual,
-      nome: `Partida ${index + 1}`,
-      jogadores: [null, null, null, null],
-      estado: 'PENDING',
-      vencedores: [],
-      vencedorId: null,
-      vencedorName: null,
-    }));
-
-    rodadas.push(proximaRodada);
-    partidasAtuais = proximaRodada;
-  }
-
-  return rodadas;
-};
-
-export default function TelaTorneio() {
-  const [conectado, setConectado] = useState(false);
-  const [partidasDoTorneio, setPartidasDoTorneio] = useState([]);
-  const [partidaId, setPartidaId] = useState('1');
-  const [jogadorId, setJogadorId] = useState('1');
-  const [pontos, setPontos] = useState('1');
-  const [statusEnvio, setStatusEnvio] = useState('');
-  const [quantidadeParticipantes, setQuantidadeParticipantes] = useState('24');
-  const [bracket, setBracket] = useState([]);
+function TelaTorneio() {
+  const [torneio, setTorneio] = useState([])
+  const [connected, setConnected] = useState(false)
+  const socketRef = useRef(null)
 
   useEffect(() => {
-    const onConnect = () => {
-      setConectado(true);
-      console.log('⚡ Conectado ao servidor Socket.io!');
-    };
+    const socket = io('http://localhost:4001', {
+      path: '/socket.io',
+      transports: ['websocket'],
+    })
 
-    const onVagasAtualizadas = (dados) => {
-      console.log('Dados recebidos do servidor:', dados);
+    socketRef.current = socket
 
-      const dadosNormalizados = normalizarDadosDoServidor(dados);
-      setPartidasDoTorneio(dadosNormalizados);
-    };
+    const handleConnect = () => setConnected(true)
+    const handleDisconnect = () => setConnected(false)
+    const handleState = (payload) => {
+      setTorneio(normalizeState(payload))
+    }
 
-    socket.on('connect', onConnect);
-    socket.on('vagas_atualizadas', onVagasAtualizadas);
+    socket.on('connect', handleConnect)
+    socket.on('disconnect', handleDisconnect)
+    socket.on('vagas_atualizadas', handleState)
 
     return () => {
-      socket.off('connect', onConnect);
-      socket.off('vagas_atualizadas', onVagasAtualizadas);
-    };
-  }, []);
-
-  const gerarTorneio = () => {
-    const quantidade = Number(quantidadeParticipantes);
-
-    if (!Number.isFinite(quantidade) || quantidade < 2) {
-      setStatusEnvio('Informe pelo menos 2 participantes para gerar o torneio.');
-      return;
+      socket.off('connect', handleConnect)
+      socket.off('disconnect', handleDisconnect)
+      socket.off('vagas_atualizadas', handleState)
+      socket.disconnect()
     }
+  }, [])
 
-    const participantes = criarJogadoresBase(quantidade, partidasDoTorneio);
-    const estruturaGerada = criarBracketDoTorneio(participantes);
-
-    setBracket(estruturaGerada);
-    setStatusEnvio(`Torneio gerado para ${participantes.length} participantes.`);
-  };
-
-  const registrarVencedor = (partidaId, jogadorId) => {
-    if (!partidaId || !jogadorId) {
-      return;
+  const emitState = (nextState) => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit('atualizar_placar', nextState)
     }
+  }
 
-    setBracket((estadoAnterior) => {
-      const rodadaAtualIndex = estadoAnterior.findIndex((rodada) =>
-        rodada.some((partida) => partida.id === partidaId)
-      );
+  const atualizarEstadoLocal = (updater) => {
+    setTorneio((prev) => {
+      const nextState = updater(prev)
+      emitState(nextState)
+      return nextState
+    })
+  }
 
-      if (rodadaAtualIndex === -1) {
-        return estadoAnterior;
-      }
+  const handleScoreChange = (chaveIndex, partidaIndex, jogadorIndex, value) => {
+    atualizarEstadoLocal((prev) =>
+      normalizeState(prev).map((chave, index) => {
+        if (index !== chaveIndex) return chave
 
-      const rodadaAtual = estadoAnterior[rodadaAtualIndex];
-      const partidaAtualIndex = rodadaAtual.findIndex((partida) => partida.id === partidaId);
-      const partidaAtual = rodadaAtual[partidaAtualIndex];
+        return {
+          ...chave,
+          partidas: (chave.partidas || []).map((partida, partidaIdx) => {
+            if (partidaIdx !== partidaIndex) return partida
 
-      if (!partidaAtual) {
-        return estadoAnterior;
-      }
-
-      const jogadorSelecionado = partidaAtual.jogadores.find((jogador) => jogador?.id === jogadorId);
-      if (!jogadorSelecionado) {
-        return estadoAnterior;
-      }
-
-      const jaSelecionado = (partidaAtual.selecionados ?? []).some((jogador) => jogador.id === jogadorId);
-      const proximosSelecionados = jaSelecionado
-        ? (partidaAtual.selecionados ?? []).filter((jogador) => jogador.id !== jogadorId)
-        : [...(partidaAtual.selecionados ?? []), jogadorSelecionado];
-
-      if (proximosSelecionados.length > 2) {
-        return estadoAnterior;
-      }
-
-      const rodadaAtualizada = rodadaAtual.map((partida) =>
-        partida.id === partidaId
-          ? {
+            return {
               ...partida,
-              estado: proximosSelecionados.length === 2 ? 'FINALIZADA' : 'EM_ANDAMENTO',
-              selecionados: proximosSelecionados,
-              vencedores: proximosSelecionados,
-              vencedorId: proximosSelecionados.length === 2 ? jogadorId : null,
-              vencedorName: proximosSelecionados.length === 2 ? jogadorSelecionado.name : null,
+              jogadores: (partida.jogadores || []).map((jogador, jogIdx) => {
+                if (jogIdx !== jogadorIndex) return jogador
+
+                return {
+                  ...jogador,
+                  score: Math.max(0, Number(value) || 0),
+                }
+              }),
             }
-          : partida
-      );
+          }),
+        }
+      })
+    )
+  }
 
-      const rodadasAtualizadas = [...estadoAnterior];
-      rodadasAtualizadas[rodadaAtualIndex] = rodadaAtualizada;
+  const handleScoreDelta = (chaveIndex, partidaIndex, jogadorIndex, delta) => {
+    const currentChave = torneio?.[chaveIndex]
+    const partida = currentChave?.partidas?.[partidaIndex]
+    const jogador = partida?.jogadores?.[jogadorIndex]
 
-      const proximaRodada = rodadasAtualizadas[rodadaAtualIndex + 1];
-      if (!proximaRodada || proximosSelecionados.length < 2) {
-        return rodadasAtualizadas;
-      }
+    if (!jogador) return
 
-      const indiceNaRodada = partidaAtualIndex;
-      const indiceProximaPartida = Math.floor(indiceNaRodada / 2);
-      const partidaDestino = proximaRodada[indiceProximaPartida];
+    handleScoreChange(chaveIndex, partidaIndex, jogadorIndex, (jogador.score || 0) + delta)
+  }
 
-      if (!partidaDestino) {
-        return rodadasAtualizadas;
-      }
+  const handleEncerrarPartida = (chaveIndex, partidaIndex) => {
+    atualizarEstadoLocal((prev) =>
+      normalizeState(prev).map((chave, index) => {
+        if (index !== chaveIndex) return chave
 
-      const jogadoresDestino = [...(partidaDestino.jogadores ?? [])];
-      const slotIndex = (indiceNaRodada % 2) * 2;
-      jogadoresDestino[slotIndex] = proximosSelecionados[0];
-      jogadoresDestino[slotIndex + 1] = proximosSelecionados[1];
+        return {
+          ...chave,
+          partidas: (chave.partidas || []).map((partida, partidaIdx) => {
+            if (partidaIdx !== partidaIndex) return partida
 
-      rodadasAtualizadas[rodadaAtualIndex + 1] = proximaRodada.map((partida, index) =>
-        index === indiceProximaPartida
-          ? {
+            const jogadores = (partida.jogadores || []).map((jogador) => ({ ...jogador }))
+            const [primeiro, segundo] = jogadores
+            const vencedor = primeiro?.score >= (segundo?.score || 0) ? primeiro : segundo
+
+            return {
               ...partida,
-              jogadores: jogadoresDestino,
-              estado: jogadoresDestino.filter(Boolean).length === 4 ? 'EM_ANDAMENTO' : 'PENDING',
+              estado: 'DONE',
+              vencedor: vencedor?.name || 'Sem vencedor',
+              jogadores: jogadores.map((jogador) => ({
+                ...jogador,
+                isWinner: jogador.id === vencedor?.id,
+              })),
             }
-          : partida
-      );
+          }),
+        }
+      })
+    )
+  }
 
-      return rodadasAtualizadas;
-    });
+  const gerarProximaFase = () => {
+    const estadoAtual = normalizeState(torneio)
 
-    setStatusEnvio(`Seleção atualizada para a partida ${partidaId}`);
-  };
+    if (!estadoAtual.length) return
 
-  const enviarTesteDePlacar = () => {
-    const payload = {
-      partidaId: Number(partidaId),
-      jogadorId: Number(jogadorId),
-      pontos: Number(pontos),
-    };
+    const faseAtual = [...estadoAtual]
+      .filter((chave) => normalizeState(chave?.partidas).length > 0)
+      .sort((a, b) => getPhaseRank(b?.NomeChave || '') - getPhaseRank(a?.NomeChave || ''))[0]
 
-    if (!Number.isFinite(payload.partidaId) || !Number.isFinite(payload.jogadorId) || !Number.isFinite(payload.pontos)) {
-      setStatusEnvio('Preencha partida, jogador e pontos com números válidos.');
-      return;
+    if (!faseAtual) return
+
+    const partidas = estadoAtual
+      .filter((chave) => getPhaseName(chave?.NomeChave || '') === getPhaseName(faseAtual?.NomeChave || ''))
+      .flatMap((chave) => normalizeState(chave?.partidas))
+
+    const todasEncerradas = partidas.length > 0 && partidas.every((partida) => partida?.estado === 'DONE')
+
+    if (!todasEncerradas) return
+
+    const vencedores = []
+
+    partidas.forEach((partida) => {
+      const jogadores = normalizeState(partida?.jogadores)
+      if (!jogadores.length) return
+
+      const vencedor = jogadores.reduce((melhor, atual) => {
+        if (!melhor) return atual
+        return (atual?.score || 0) > (melhor?.score || 0) ? atual : melhor
+      }, null)
+
+      if (vencedor) {
+        vencedores.push({
+          id: vencedor.id,
+          name: vencedor.name,
+          score: vencedor.score || 0,
+          bye: Boolean(vencedor.bye),
+        })
+      }
+    })
+
+    if (!vencedores.length) return
+
+    const nomeProximaFase = getNextPhaseName(faseAtual?.NomeChave || '')
+
+    const novasChaves = CHAVES_BASE.map((chaveNome, index) => ({
+      id: Date.now() + index + 1,
+      NomeChave: `${chaveNome} - ${nomeProximaFase}`,
+      partidas: [],
+    }))
+
+    const partidasGeradas = []
+    let fila = [...vencedores]
+
+    while (fila.length > 1) {
+      const primeiro = fila.shift()
+      const segundo = fila.shift()
+      partidasGeradas.push({
+        id: Date.now() + partidasGeradas.length + 1,
+        nome: `Jogo ${partidasGeradas.length + 1}`,
+        horario: '--',
+        estado: 'LIVE',
+        jogadores: [
+          { id: primeiro?.id || `p-${partidasGeradas.length + 1}`, name: primeiro?.name || 'Jogador', score: 0 },
+          { id: segundo?.id || `p-${partidasGeradas.length + 2}`, name: segundo?.name || 'Jogador', score: 0 },
+        ],
+      })
     }
 
-    socket.emit('atualizar_placar', payload);
-    setStatusEnvio(`Enviado: partida ${payload.partidaId}, jogador ${payload.jogadorId}, +${payload.pontos}`);
-  };
+    if (fila.length === 1) {
+      const restante = fila[0]
+      partidasGeradas.push({
+        id: Date.now() + partidasGeradas.length + 1,
+        nome: `Jogo ${partidasGeradas.length + 1}`,
+        horario: '--',
+        estado: 'LIVE',
+        jogadores: [
+          { id: restante?.id || 'bye-1', name: restante?.name || 'Jogador', score: 0 },
+          { id: `bye-${Date.now()}`, name: 'BYE', score: 0, bye: true },
+        ],
+      })
+    }
+
+    partidasGeradas.forEach((partida, index) => {
+      const chaveIndex = index % novasChaves.length
+      novasChaves[chaveIndex].partidas.push(partida)
+    })
+
+    const nextState = [...estadoAtual, ...novasChaves]
+    setTorneio(nextState)
+    emitState(nextState)
+  }
 
   return (
-    <div className="torneio-container">
-      <div className="status-badge">
-        <span className={conectado ? 'dot conectado' : 'dot desconectado'}></span>
-        <p>{conectado ? 'Conectado ao servidor' : 'Conectando...'}</p>
+    <div className="torneio-shell">
+      <header className="torneio-header">
+        <div>
+          <p className="eyebrow">Painel do administrador</p>
+          <h1>FT_TORNEIO</h1>
+          <p className="subtitle">Gerenciamento em tempo real do 1x1</p>
+        </div>
+
+        <div className={`status-badge ${connected ? 'online' : 'offline'}`}>
+          {connected ? '🟢 Conectado' : '🔴 Desconectado'}
+        </div>
+      </header>
+
+      <div className="toolbar">
+        <button type="button" className="advance-btn" onClick={gerarProximaFase}>
+          Avançar fase
+        </button>
+        <p className="helper-text">Encerrando todas as partidas da fase atual, os vencedores geram a próxima rodada automaticamente.</p>
       </div>
 
-      <section className="painel-teste">
-        <h2>Teste rápido do socket</h2>
-        <p>Use este painel para mandar um placar de teste ao backend Python.</p>
+      <div className="chaves-grid">
+        {torneio?.length ? (
+          torneio.map((chave, chaveIndex) => (
+            <section key={chave.id || `${chave.NomeChave}-${chaveIndex}`} className="chave-card">
+              <div className="chave-header">
+                <h2>{chave.NomeChave}</h2>
+                <span>{(chave.partidas || []).length} partidas</span>
+              </div>
 
-        <div className="painel-campos">
-          <label>
-            Partida
-            <input
-              type="number"
-              min="1"
-              value={partidaId}
-              onChange={(event) => setPartidaId(event.target.value)}
-            />
-          </label>
-
-          <label>
-            Jogador
-            <input
-              type="number"
-              min="1"
-              value={jogadorId}
-              onChange={(event) => setJogadorId(event.target.value)}
-            />
-          </label>
-
-          <label>
-            Pontos
-            <input
-              type="number"
-              value={pontos}
-              onChange={(event) => setPontos(event.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="painel-acoes">
-          <button type="button" onClick={enviarTesteDePlacar}>
-            Enviar atualização
-          </button>
-          <button
-            type="button"
-            className="botao-secundario"
-            onClick={() => {
-              setPartidaId('1');
-              setJogadorId('1');
-              setPontos('1');
-              setStatusEnvio('Campos resetados para o teste padrão.');
-            }}
-          >
-            Resetar campos
-          </button>
-        </div>
-
-        {statusEnvio ? <p className="status-envio">{statusEnvio}</p> : null}
-      </section>
-
-      <section className="painel-teste">
-        <h2>Gerar bracket do torneio</h2>
-        <p>Defina qualquer quantidade de participantes e o sistema cria as partidas automaticamente.</p>
-
-        <div className="painel-campos">
-          <label>
-            Quantidade de participantes
-            <input
-              type="number"
-              min="2"
-              value={quantidadeParticipantes}
-              onChange={(event) => setQuantidadeParticipantes(event.target.value)}
-            />
-          </label>
-        </div>
-
-        <div className="painel-acoes">
-          <button type="button" onClick={gerarTorneio}>
-            Gerar torneio
-          </button>
-        </div>
-      </section>
-
-      {bracket.length > 0 ? (
-        <section className="painel-teste">
-          <h2>Estrutura do torneio</h2>
-          <div className="bracket-grid">
-            {bracket.map((rodada, index) => (
-              <div key={`rodada-${index + 1}`} className="fase-card">
-                <h3>Rodada {index + 1}</h3>
-                {rodada.map((partida) => (
-                  <div key={partida.id} className={`partida-card ${partida.estado.toLowerCase()}`}>
-                    <div className="partida-header">
-                      <strong>{partida.nome}</strong>
-                      <span className="partida-horario">{partida.estado}</span>
-                    </div>
-
-                    <div className="match-jogadores">
-                      {partida.jogadores.map((jogador, jogadorIndex) => (
-                        jogador ? (
-                          <button
-                            key={`${partida.id}-${jogador.id}`}
-                            type="button"
-                            className={`botao-jogador ${
-                              (partida.selecionados ?? []).some((selecionado) => selecionado.id === jogador.id)
-                                ? 'selecionado'
-                                : ''
-                            }`}
-                            onClick={() => registrarVencedor(partida.id, jogador.id)}
-                          >
-                            {jogadorIndex + 1}. {jogador.name}
-                          </button>
-                        ) : (
-                          <div key={`${partida.id}-vazio-${jogadorIndex}`} className="jogador-vazio">
-                            Aguardando
-                          </div>
-                        )
-                      ))}
-                    </div>
-
-                    {(partida.selecionados ?? []).length > 0 ? (
-                      <div className="vencedor-badge">
-                        Avançam: {(partida.selecionados ?? []).map((jogador) => jogador.name).join(', ')}
+              <div className="partidas-list">
+                {(chave.partidas || []).length ? (
+                  (chave.partidas || []).map((partida, partidaIndex) => (
+                    <article key={partida.id || `${chaveIndex}-${partidaIndex}`} className={`partida-card ${partida.estado === 'DONE' ? 'done' : 'live'}`}>
+                      <div className="partida-top">
+                        <strong>{partida.nome}</strong>
+                        <span className={`status-pill ${partida.estado === 'DONE' ? 'done' : 'live'}`}>
+                          {partida.estado === 'DONE' ? 'DONE' : 'LIVE'}
+                        </span>
                       </div>
-                    ) : null}
-                  </div>
-                ))}
+
+                      <div className="jogadores-list">
+                        {(partida.jogadores || []).map((jogador, jogadorIndex) => (
+                          <div key={jogador.id || `${partida.id}-${jogadorIndex}`} className="jogador-row">
+                            <div className="jogador-info">
+                              <span className="player-name">{jogador.name}</span>
+                              {jogador.bye ? <span className="bye-pill">Bye</span> : null}
+                            </div>
+
+                            <div className="score-controls">
+                              <button type="button" onClick={() => handleScoreDelta(chaveIndex, partidaIndex, jogadorIndex, -1)}>
+                                −
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                value={jogador.score || 0}
+                                onChange={(event) => handleScoreChange(chaveIndex, partidaIndex, jogadorIndex, event.target.value)}
+                              />
+                              <button type="button" onClick={() => handleScoreDelta(chaveIndex, partidaIndex, jogadorIndex, 1)}>
+                                +
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {partida.estado === 'DONE' && partida.vencedor ? (
+                        <p className="winner-text">Vencedor: {partida.vencedor}</p>
+                      ) : null}
+
+                      <button type="button" className="finish-btn" onClick={() => handleEncerrarPartida(chaveIndex, partidaIndex)}>
+                        Encerrar partida
+                      </button>
+                    </article>
+                  ))
+                ) : (
+                  <p className="empty-state">Nenhuma partida cadastrada nesta chave ainda.</p>
+                )}
               </div>
-            ))}
+            </section>
+          ))
+        ) : (
+          <div className="empty-state-card">
+            <h2>Aguardando dados do backend</h2>
+            <p>As chaves aparecerão aqui assim que o servidor enviar o estado do torneio.</p>
           </div>
-        </section>
-      ) : null}
-
-      <h1 className="torneio-titulo">🏆 Chaves do Torneio</h1>
-
-      {partidasDoTorneio.length === 0 ? (
-        <p className="sem-dados">Nenhuma partida recebida ainda.</p>
-      ) : (
-        <div className="chaves-grid">
-          {partidasDoTorneio.map((chave) => (
-            <div key={chave.id} className="chave-card">
-              {/* CORRIGIDO: NomeChave com N maiúsculo conforme o seu JSON */}
-              <h3 className="chave-nome">{chave.nomeChave}</h3> 
-              
-              <div className="partidas-lista">
-                {chave.partidas?.map((partida) => (
-                  <div key={partida.id} className={`partida-card ${partida.estado.toLowerCase()}`}>
-                    <div className="partida-header">
-                      <strong>{partida.nome}</strong>
-                      <span className="partida-horario">{partida.horario}</span>
-                    </div>
-                    
-                    <span className={`status-tag ${partida.estado.toLowerCase()}`}>
-                      {partida.estado} 
-                    </span>
-                    
-                    <ul className="jogadores-lista">
-                      {partida.jogadores?.map((jogador) => (
-                        <li key={jogador.id} className="jogador-item">
-                          🎮 {jogador.name} <span className="jogador-score">{jogador.score}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+        )}
+      </div>
     </div>
-  );
+  )
 }
+
+export default TelaTorneio
