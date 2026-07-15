@@ -234,6 +234,16 @@ input {
   text-align: center;
 }
 
+.score-display {
+  min-width: 54px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: center;
+  background: rgba(41, 182, 111, 0.16);
+  color: #83f1b1;
+  font-weight: 700;
+}
+
 .finish-btn {
   width: 100%;
   padding: 8px 12px;

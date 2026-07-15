@@ -36,7 +36,7 @@ const getPhaseRank = (value = '') => {
 
 const normalizeState = (value) => (Array.isArray(value) ? value : [])
 
-function TelaTorneio() {
+function TelaTorneio({ isAdmin = true }) {
   const [torneio, setTorneio] = useState([])
   const [connected, setConnected] = useState(false)
   const socketRef = useRef(null)
@@ -253,12 +253,18 @@ function TelaTorneio() {
         </div>
       </header>
 
-      <div className="toolbar">
-        <button type="button" className="advance-btn" onClick={gerarProximaFase}>
-          Avançar fase
-        </button>
-        <p className="helper-text">Encerrando todas as partidas da fase atual, os vencedores geram a próxima rodada automaticamente.</p>
-      </div>
+      {isAdmin ? (
+        <div className="toolbar">
+          <button type="button" className="advance-btn" onClick={gerarProximaFase}>
+            Avançar fase
+          </button>
+          <p className="helper-text">Encerrando todas as partidas da fase atual, os vencedores geram a próxima rodada automaticamente.</p>
+        </div>
+      ) : (
+        <div className="toolbar">
+          <p className="helper-text">Visualização em tempo real do placar. Nenhuma alteração é permitida.</p>
+        </div>
+      )}
 
       <div className="chaves-grid">
         {torneio?.length ? (
@@ -288,20 +294,26 @@ function TelaTorneio() {
                               {jogador.bye ? <span className="bye-pill">Bye</span> : null}
                             </div>
 
-                            <div className="score-controls">
-                              <button type="button" onClick={() => handleScoreDelta(chaveIndex, partidaIndex, jogadorIndex, -1)}>
-                                −
-                              </button>
-                              <input
-                                type="number"
-                                min="0"
-                                value={jogador.score || 0}
-                                onChange={(event) => handleScoreChange(chaveIndex, partidaIndex, jogadorIndex, event.target.value)}
-                              />
-                              <button type="button" onClick={() => handleScoreDelta(chaveIndex, partidaIndex, jogadorIndex, 1)}>
-                                +
-                              </button>
-                            </div>
+                            {isAdmin ? (
+                              <div className="score-controls">
+                                <button type="button" onClick={() => handleScoreDelta(chaveIndex, partidaIndex, jogadorIndex, -1)}>
+                                  −
+                                </button>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={jogador.score || 0}
+                                  onChange={(event) => handleScoreChange(chaveIndex, partidaIndex, jogadorIndex, event.target.value)}
+                                />
+                                <button type="button" onClick={() => handleScoreDelta(chaveIndex, partidaIndex, jogadorIndex, 1)}>
+                                  +
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="score-display">
+                                <strong>{jogador.score || 0}</strong>
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>
@@ -310,9 +322,11 @@ function TelaTorneio() {
                         <p className="winner-text">Vencedor: {partida.vencedor}</p>
                       ) : null}
 
-                      <button type="button" className="finish-btn" onClick={() => handleEncerrarPartida(chaveIndex, partidaIndex)}>
-                        Encerrar partida
-                      </button>
+                      {isAdmin ? (
+                        <button type="button" className="finish-btn" onClick={() => handleEncerrarPartida(chaveIndex, partidaIndex)}>
+                          Encerrar partida
+                        </button>
+                      ) : null}
                     </article>
                   ))
                 ) : (
