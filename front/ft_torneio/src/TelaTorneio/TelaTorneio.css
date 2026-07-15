@@ -11,6 +11,72 @@ body {
   margin: 0 auto;
 }
 
+.painel-teste {
+  background: linear-gradient(180deg, #202024 0%, #17171a 100%);
+  border: 1px solid #323238;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.painel-teste h2 {
+  margin: 0 0 8px 0;
+}
+
+.painel-teste p {
+  margin: 0 0 16px 0;
+  color: #c4c4cc;
+}
+
+.painel-campos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.painel-campos label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: #e1e1e6;
+}
+
+.painel-campos input {
+  background: #121214;
+  color: #e1e1e6;
+  border: 1px solid #323238;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.painel-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.painel-acoes button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  background: #04d361;
+  color: #121214;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.painel-acoes .botao-secundario {
+  background: #323238;
+  color: #e1e1e6;
+}
+
+.status-envio {
+  margin-top: 14px;
+  color: #82ffb1;
+}
+
 .torneio-titulo {
   text-align: center;
   margin-bottom: 40px;
@@ -106,4 +172,16 @@ body {
   padding: 6px 0;
   border-bottom: 1px solid #202024;
   font-size: 0.9rem;
+}
+
+.jogador-score {
+  display: inline-block;
+  margin-left: 8px;
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #323238;
+  color: #04d361;
+  text-align: center;
+  font-weight: 700;
 }

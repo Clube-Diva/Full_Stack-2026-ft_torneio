@@ -2,8 +2,8 @@
 
 ## Pré-requisitos
 
-- Node.js instalado
-- npm instalado
+- Python 3.11 ou superior
+- pip instalado
 
 ## Instalação
 
@@ -11,7 +11,7 @@ No terminal, entre na pasta do backend:
 
 ```bash
 cd back
-npm install
+pip install -r requirements.txt
 ```
 
 ## Rodar o servidor
@@ -19,36 +19,28 @@ npm install
 Para iniciar o backend em modo desenvolvimento:
 
 ```bash
-npm run dev
-```
-
-Ou, para rodar em modo normal:
-
-```bash
-npm start
+python app.py
 ```
 
 O servidor ficará disponível em:
 
 ```text
-http://localhost:4000
+http://localhost:4001
 ```
 
-## Teste básico no Postman
+## Teste básico no navegador ou Postman
 
-1. Abra o Postman.
-2. Crie uma nova requisição do tipo GET.
-3. Coloque a URL:
+1. Abra o navegador ou o Postman.
+2. Faça uma requisição GET para:
 
 ```text
-http://localhost:4000/
+http://localhost:4001/
 ```
 
-4. Clique em Send.
-5. O resultado esperado é um status 200 e uma resposta como:
+3. O resultado esperado é uma resposta JSON como:
 
-```text
-Servidor do ft_torneio rodando com sucesso! 🏆
+```json
+{"message":"Servidor do ft_torneio rodando com sucesso! 🏆"}
 ```
 
 Se a resposta aparecer, o backend está funcionando corretamente.

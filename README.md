@@ -11,7 +11,7 @@ O **ft_torneio** nasceu para resolver aquela velha bagunça na hora de organizar
 Para que o projeto fosse dinâmico e responsivo, escolhemos a "santíssima trindade" do tempo real:
 
 * **Frontend:** React (Interface moderna, rápida e componentizada)
-* **Backend:** Node.js (Robustez e escalabilidade no servidor)
+* **Backend:** FastAPI + python-socketio (Robustez no servidor e tempo real)
 * **Comunicação:** Socket.io (O coração do projeto, garantindo que as atualizações dos placares e chaves aconteçam **ao vivo** para todos os usuários conectados)
 
 ---
@@ -29,7 +29,9 @@ Para que o projeto fosse dinâmico e responsivo, escolhemos a "santíssima trind
 Para colocar o torneio de pé no Lab da faculdade ou no seu PC, siga os passos abaixo:
 
 ### Pré-requisitos
-Você vai precisar do **Node.js** e do **npm** (ou yarn) instalados.
+Você vai precisar do **Node.js** e do **npm** instalados.
+
+O frontend usa **Node 20.19.0**. Se o seu ambiente estiver com uma versão mais antiga, os scripts do front baixam e usam essa versão automaticamente na primeira execução.
 
 ### 1. Clonar o Repositório
 ```bash
@@ -38,27 +40,27 @@ cd Full_Stack-2026-ft_torneio
 ```
 2. Configurar o Backend
 ```bash
-# Entre na pasta do servidor (ajuste o caminho se necessário)
-cd backend
+# Entre na pasta do servidor
+cd back
 
-# Instale as dependências
-npm install
+# Instale as dependências Python
+pip install -r requirements.txt
 
 # Inicie o servidor
-npm start
+python app.py
 ```
 3. Configurar o Frontend
 ```bash
-# Abra um novo terminal e entre na pasta do cliente
-cd frontend
+# Abra um novo terminal e entre na pasta do front
+cd front/ft_torneio
 
 # Instale as dependências
 npm install
 
 # Inicie a aplicação React
-npm start
+npm run dev
 ```
-Agora é só abrir http://localhost:3000 no seu navegador e começar a jogatina! 🎮
+Agora é só abrir http://localhost:5173 no seu navegador e começar a jogatina! 🎮
 
 ## 🤝 Como Contribuir
 

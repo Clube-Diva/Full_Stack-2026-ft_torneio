@@ -3,11 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "dev": "bash ../../scripts/node20.sh vite",
+    "build": "bash ../../scripts/node20.sh vite build",
+    "lint": "bash ../../scripts/node20.sh oxlint",
+    "preview": "bash ../../scripts/node20.sh vite preview"
   },
   "dependencies": {
     "@g-loot/react-tournament-brackets": "^1.0.22",
