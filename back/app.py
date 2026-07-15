@@ -108,27 +108,27 @@ async def connect(sid, environ, auth):
 
 @sio.event
 async def atualizar_placar(sid, dados_da_partida):
-    partida_id = dados_da_partida.get("partidaId")
-    jogador_id = dados_da_partida.get("jogadorId")
-    pontos = dados_da_partida.get("pontos", 0)
-    novo_estado_do_torneio = dados_da_partida.get("novoEstadoDoTorneio")
+    # partida_id = dados_da_partida.get("partidaId")
+    # jogador_id = dados_da_partida.get("jogadorId")
+    # pontos = dados_da_partida.get("pontos", 0)
+    # novo_estado_do_torneio = dados_da_partida.get("novoEstadoDoTorneio")
 
-    if isinstance(novo_estado_do_torneio, list):
-        estado_do_torneio.clear()
-        estado_do_torneio.extend(novo_estado_do_torneio)
-    else:
-        for grupo in estado_do_torneio:
-            partida = next((p for p in grupo["partidas"] if p["id"] == partida_id), None)
-            if partida is None:
-                continue
+    # if isinstance(novo_estado_do_torneio, list):
+    #     estado_do_torneio.clear()
+    #     estado_do_torneio.extend(novo_estado_do_torneio)
+    # else:
+    #     for grupo in estado_do_torneio:
+    #         partida = next((p for p in grupo["partidas"] if p["id"] == partida_id), None)
+    #         if partida is None:
+    #             continue
 
-            jogador = next((j for j in partida["jogadores"] if j["id"] == jogador_id), None)
-            if jogador is not None:
-                jogador["score"] += pontos
-            break
+    #         jogador = next((j for j in partida["jogadores"] if j["id"] == jogador_id), None)
+    #         if jogador is not None:
+    #             jogador["score"] += pontos
+    #         break
 
     print(f"Placar atualizado: {dados_da_partida}")
-    await sio.emit("vagas_atualizadas", estado_do_torneio)
+    await sio.emit("vagas_atualizadas", dados_da_partida)
 
 
 @sio.event
