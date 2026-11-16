@@ -1,0 +1,15 @@
+services:
+  api:
+    build: .
+    container_name: mariokart42-api
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      # Sincroniza seu código local com o container em tempo real
+      - .:/app
+      # Preserva a node_modules instalada dentro do Linux do container
+      - /app/node_modules
+    command: npm run dev
+    restart: unless-stopped
