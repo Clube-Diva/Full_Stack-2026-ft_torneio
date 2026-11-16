@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 # Define o diretório de trabalho dentro do container
 WORKDIR /app
@@ -9,8 +9,8 @@ COPY package*.json ./
 # Instala todas as dependências (incluindo nodemon para ambiente dev)
 RUN npm install
 
-# Copia o restante do código da aplicação
-COPY . .
+# Copia o código da aplicação
+COPY src ./src
 
 # Expõe a porta configurada no Express
 EXPOSE 3000

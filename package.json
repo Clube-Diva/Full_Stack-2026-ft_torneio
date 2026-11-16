@@ -1,0 +1,33 @@
+{
+  "name": "full_stack-2026-ft_torneio",
+  "version": "1.0.0",
+  "description": "Backend for the Mario Kart 42 tournament",
+  "main": "src/server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Clube-Diva/Full_Stack-2026-ft_torneio.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Clube-Diva/Full_Stack-2026-ft_torneio/issues"
+  },
+  "homepage": "https://github.com/Clube-Diva/Full_Stack-2026-ft_torneio#readme",
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
