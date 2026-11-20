@@ -9,12 +9,13 @@ const supabase = require('./supabase');
 const app = express();
 const server = http.createServer(app);
 
+
 const {
   FT_CLIENT_ID,
   FT_CLIENT_SECRET,
   FT_REDIRECT_URI,
   FRONTEND_URL = 'http://localhost:5173',
-  PORT = 3000,
+  PORT = process.env.PORT || 3000,
 } = process.env;
 
 // Configuração do CORS para rotas HTTP do Express
@@ -180,6 +181,364 @@ app.get('/callback', async (req, res) => {
     res.status(500).json({ erro: 'Erro interno no servidor' });
   }
 });
+
+async function autenticarAluno(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ erro: 'Token de autenticação ausente.' });
+  }
+
+  const token = authHeader.split(' ')[1];
+
+  const { data: user, error } = await supabase
+    .from('users')
+    .select('id, intra_id, login, display_name, avatar_url, token_expires_at')
+    .eq('access_token', token)
+    .single();
+
+  if (error || !user) {
+    return res.status(401).json({ erro: 'Sessão inválida. Faça login novamente pela Intra 42.' });
+  }
+
+  // Verifica se o token da Intra já expirou
+  if (user.token_expires_at && new Date(user.token_expires_at) < new Date()) {
+    return res.status(401).json({ erro: 'Sua sessão da Intra expirou. Faça login novamente.' });
+  }
+
+  req.user = user;
+  next();
+}
+
+// 1. Consulta os dados do piloto logado e se ele já está inscrito
+app.get('/api/inscricao/status', autenticarAluno, async (req, res) => {
+  const { data: inscricao } = await supabase
+    .from('registrations')
+    .select('id, status, created_at')
+    .eq('user_id', req.user.id)
+    .maybeSingle();
+
+  res.json({
+    usuario: {
+      login: req.user.login,
+      display_name: req.user.display_name,
+      avatar_url: req.user.avatar_url,
+    },
+    inscrito: Boolean(inscricao),
+    inscricao: inscricao || null,
+  });
+});
+
+// 2. Realiza a inscrição APENAS para o dono do token autenticado
+app.post('/api/inscricao', autenticarAluno, async (req, res) => {
+  try {
+    const { data: novaInscricao, error } = await supabase
+      .from('registrations')
+      .insert({
+        user_id: req.user.id, // Ignora qualquer dado do body; usa só o usuário do token
+        status: 'confirmed',
+      })
+      .select('id, status, created_at')
+      .single();
+
+    if (error) {
+      // Código 23505 no PostgreSQL = violação de chave UNIQUE (já inscrito)
+      if (error.code === '23505') {
+        return res.status(409).json({
+          erro: 'Você já está inscrito neste torneio. Apenas uma inscrição por login é permitida.',
+        });
+      }
+      throw error;
+    }
+
+    // Avisa em tempo real no Socket.IO que há um novo piloto inscrito
+    io.to('torneio_geral').emit('novo_inscrito', {
+      login: req.user.login,
+      display_name: req.user.display_name,
+    });
+
+    res.status(201).json({
+      mensagem: `Inscrição confirmada com sucesso para ${req.user.login}!`,
+      inscricao: novaInscricao,
+    });
+  } catch (err) {
+    console.error('Erro ao realizar inscrição:', err);
+    res.status(500).json({ erro: 'Erro interno ao processar sua inscrição.' });
+  }
+});
+
+// ============================================================================
+// ROTAS DE CHAVES DO TORNEIO (REAIS + TEMPO REAL VIA SOCKET.IO)
+// ============================================================================
+
+// Função auxiliar para montar a estrutura completa das chaves a partir do Supabase
+async function buscarEstruturaChaves() {
+  const { data: matches, error } = await supabase
+    .from('matches')
+    .select(`
+      id,
+      round_name,
+      round_order,
+      match_code,
+      station,
+      status,
+      match_participants (
+        id,
+        points,
+        advanced,
+        users (
+          id,
+          login,
+          display_name,
+          avatar_url
+        )
+      )
+    `)
+    .order('round_order', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (error) throw error;
+
+  // Agrupa as partidas por nome da rodada mantendo a ordem
+  const rodadasMap = new Map();
+
+  for (const m of matches || []) {
+    if (!rodadasMap.has(m.round_name)) {
+      rodadasMap.set(m.round_name, {
+        rodada: m.round_name,
+        partidas: [],
+      });
+    }
+
+    const pilotos = (m.match_participants || [])
+      .map((mp) => ({
+        participant_id: mp.id,
+        user_id: mp.users?.id,
+        login: mp.users?.login || 'Desconhecido',
+        display_name: mp.users?.display_name,
+        avatar_url: mp.users?.avatar_url,
+        pontos: mp.points,
+        avancou: mp.advanced,
+      }))
+      .sort((a, b) => b.pontos - a.pontos);
+
+    rodadasMap.get(m.round_name).partidas.push({
+      db_id: m.id,
+      id: m.match_code,
+      mesa: m.station,
+      status: m.status,
+      pilotos,
+    });
+  }
+
+  return Array.from(rodadasMap.values());
+}
+
+
+// 1. Lista as chaves atuais e o total de inscritos confirmados (acesso público)
+app.get('/api/chaves', async (req, res) => {
+  try {
+    const fases = await buscarEstruturaChaves();
+
+    const { data: inscritos, error: errInscritos } = await supabase
+      .from('registrations')
+      .select('id, status, users (id, login, display_name, avatar_url)')
+      .eq('status', 'confirmed')
+      .order('created_at', { ascending: true });
+
+    if (errInscritos) throw errInscritos;
+
+    res.json({
+      fases,
+      inscritos: (inscritos || []).map((i) => i.users),
+    });
+  } catch (err) {
+    console.error('Erro ao buscar chaves:', err);
+    res.status(500).json({ erro: 'Erro ao carregar as chaves do torneio.' });
+  }
+});
+app.post('/api/chaves/gerar', autenticarAluno, async (req, res) => {
+  try {
+    const { data: inscritos, error: errInsc } = await supabase
+      .from('registrations')
+      .select('user_id, users (login)')
+      .eq('status', 'confirmed');
+
+    if (errInsc) throw errInsc;
+
+    if (!inscritos || inscritos.length < 2) {
+      return res.status(400).json({
+        erro: 'É necessário ter pelo menos 2 pilotos inscritos para sortear as chaves.',
+      });
+    }
+
+    // Limpa chaves anteriores
+    await supabase.from('match_participants').delete().neq('id', 0);
+    await supabase.from('matches').delete().neq('id', 0);
+
+    // Embaralha os inscritos (Fisher-Yates Shuffle)
+    const embaralhados = [...inscritos];
+    for (let i = embaralhados.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [embaralhados[i], embaralhados[j]] = [embaralhados[j], embaralhados[i]];
+    }
+
+    const tamanhoBateria = 4;
+    const totalInscritos = embaralhados.length;
+    
+    // Calcula quantas baterias são necessárias na 1ª fase (arredondando para cima para caber todo mundo)
+    const totalBateriasFase1 = Math.ceil(totalInscritos / tamanhoBateria);
+
+    const copas = ['Copa Cogumelo', 'Copa Flor', 'Copa Estrela', 'Copa Especial'];
+
+    // 1. CRIAÇÃO DA 1ª FASE (Classificatória)
+    for (let i = 0; i < totalBateriasFase1; i++) {
+      const inicio = i * tamanhoBateria;
+      const grupo = embaralhados.slice(inicio, inicio + tamanhoBateria);
+      const numeroBateria = i + 1;
+      const copa = copas[i % copas.length];
+
+      const { data: partidaCriada, error: errMatch } = await supabase
+        .from('matches')
+        .insert({
+          round_name: '1ª Fase (Classificatória)',
+          round_order: 1,
+          match_code: `B${numeroBateria}`,
+          station: `Switch 1 - ${copa}`,
+          status: numeroBateria === 1 ? 'em_andamento' : 'aguardando',
+        })
+        .select('id')
+        .single();
+
+      if (errMatch) throw errMatch;
+
+      // Insere os pilotos reais que caíram nessa bateria
+      const participantesPayload = grupo.map((p) => ({
+        match_id: partidaCriada.id,
+        user_id: p.user_id,
+        points: 0,
+        advanced: false,
+      }));
+
+      if (participantesPayload.length > 0) {
+        const { error: errPart } = await supabase
+          .from('match_participants')
+          .insert(participantesPayload);
+        if (errPart) throw errPart;
+      }
+    }
+
+    // 2. CRIAÇÃO DA FASE SEGUINTE (Semifinais de Grupo / Ex: 16 vencedores geram 4 baterias)
+    const totalBateriasFase2 = Math.ceil(totalBateriasFase1 / tamanhoBateria);
+    if (totalBateriasFase2 > 0 && totalBateriasFase1 > 1) {
+      for (let i = 0; i < totalBateriasFase2; i++) {
+        const numeroBateria = i + 1;
+        const copa = copas[i % copas.length];
+
+        await supabase.from('matches').insert({
+          round_name: 'Semifinais',
+          round_order: 2,
+          match_code: `SF${numeroBateria}`,
+          station: `Switch 1 - Semifinal ${numeroBateria}`,
+          status: 'aguardando',
+        });
+      }
+    }
+
+    // 3. CRIAÇÃO DA GRANDE FINAL (Sempre 1 bateria final)
+    await supabase.from('matches').insert({
+      round_name: 'Grande Final',
+      round_order: 3,
+      match_code: 'F1',
+      station: 'Telão Principal - Grande Final',
+      status: 'aguardando',
+    });
+
+    const fasesAtualizadas = await buscarEstruturaChaves();
+    io.to('torneio_geral').emit('chaves_atualizadas', fasesAtualizadas);
+
+    res.status(201).json({
+      mensagem: 'Chaves de 64 vagas sorteadas com sucesso!',
+      fases: fasesAtualizadas,
+    });
+  } catch (err) {
+    console.error('Erro ao gerar chaves:', err);
+    res.status(500).json({ erro: 'Erro interno ao gerar as chaves.' });
+  }
+});
+
+
+
+async function inicializarArvoreTorneio(embaralhados = []) {
+  await supabase.from('match_participants').delete().neq('id', 0);
+  await supabase.from('matches').delete().neq('id', 0);
+
+  // Cria as 21 partidas estruturadas para 64 jogadores (Symmetric Bracket)
+  const estruturaPartidas = [
+    // Lado Esquerdo - 100cc (Partidas 1 a 8)
+    ...Array.from({ length: 8 }, (_, i) => ({
+      match_code: `P${i + 1}`,
+      round_name: '100cc',
+      round_order: 1,
+      station: `Partida ${i + 1}`,
+      status: i === 0 ? 'em_andamento' : 'aguardando',
+    })),
+    // Lado Esquerdo - Semi Final 150cc
+    { match_code: 'SF1', round_name: 'Semi Final', round_order: 2, station: 'Semi Esquerda 1', status: 'aguardando' },
+    { match_code: 'SF2', round_name: 'Semi Final', round_order: 2, station: 'Semi Esquerda 2', status: 'aguardando' },
+
+    // Centro - Grande FINAL 200cc
+    { match_code: 'FINAL', round_name: 'Grande FINAL', round_order: 3, station: 'Grande Final', status: 'aguardando' },
+
+    // Lado Direito - Semi Final 150cc
+    { match_code: 'SF3', round_name: 'Semi Final', round_order: 2, station: 'Semi Direita 1', status: 'aguardando' },
+    { match_code: 'SF4', round_name: 'Semi Final', round_order: 2, station: 'Semi Direita 2', status: 'aguardando' },
+
+    // Lado Direito - 100cc (Partidas 9 a 16)
+    ...Array.from({ length: 8 }, (_, i) => ({
+      match_code: `P${i + 9}`,
+      round_name: '100cc',
+      round_order: 1,
+      station: `Partida ${i + 9}`,
+      status: 'aguardando',
+    })),
+  ];
+
+  const partidasCriadas = {};
+  for (const p of estruturaPartidas) {
+    const { data, error } = await supabase
+      .from('matches')
+      .insert(p)
+      .select('id, match_code')
+      .single();
+    if (error) throw error;
+    partidasCriadas[p.match_code] = data.id;
+  }
+
+  // Distribui os inscritos (até 64) nas 16 partidas iniciais (4 por partida)
+  for (let i = 0; i < embaralhados.length; i++) {
+    const indicePartida = Math.floor(i / 4) + 1; // P1 até P16
+    if (indicePartida > 16) break;
+
+    const codigoPartida = `P${indicePartida}`;
+    const matchId = partidasCriadas[codigoPartida];
+
+    if (matchId) {
+      await supabase.from('match_participants').insert({
+        match_id: matchId,
+        user_id: embaralhados[i].user_id,
+        points: 0,
+        advanced: false,
+      });
+    }
+  }
+}
+
+
+
+
+
+
+
 
 // IMPORTANTE: Usar server.listen em vez de app.listen
 server.listen(PORT, () => {

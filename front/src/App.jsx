@@ -1,74 +1,81 @@
 import { useEffect, useState } from 'react';
 import { socket } from './services/socket';
+import InscricaoPage from './pages/InscricaoPage';
+import ChavesPage from './pages/ChavesPage';
 
 const BACKEND_URL = 'http://localhost:3000';
 
 export default function App() {
-  const [userLogin, setUserLogin] = useState(null);
-  const [socketConnected, setSocketConnected] = useState(false);
-  const [socketError, setSocketError] = useState(null);
-  const [serverLogs, setServerLogs] = useState([]);
+  const [abaAtiva, setAbaAtiva] = useState('inscricao'); // 'inscricao' | 'chaves'
 
-  const addLog = (msg) => {
-    setServerLogs((prev) => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
+  const [token, setToken] = useState(null);
+  const [usuario, setUsuario] = useState(null);
+  const [inscrito, setInscrito] = useState(false);
+  const [inscricaoInfo, setInscricaoInfo] = useState(null);
+
+  const [carregando, setCarregando] = useState(true);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState(null);
+  const [mensagemSucesso, setMensagemSucesso] = useState(null);
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  const carregarStatusInscricao = async (authToken) => {
+    setCarregando(true);
+    setErro(null);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/inscricao/status`, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (res.status === 401) handleLogout();
+        setErro(data.erro || 'Não foi possível verificar sua sessão.');
+        return;
+      }
+
+      setUsuario(data.usuario);
+      setInscrito(data.inscrito);
+      setInscricaoInfo(data.inscricao);
+    } catch {
+      setErro('Falha ao conectar com o servidor do torneio.');
+    } finally {
+      setCarregando(false);
+    }
   };
 
   useEffect(() => {
-    // 1. Verifica se o backend redirecionou de volta com token e login na URL
     const params = new URLSearchParams(window.location.search);
     const tokenFromUrl = params.get('token');
-    const loginFromUrl = params.get('login');
 
     if (tokenFromUrl) {
       localStorage.setItem('ft_token', tokenFromUrl);
-      if (loginFromUrl) localStorage.setItem('ft_login', loginFromUrl);
-
-      // Limpa os parâmetros sensíveis da barra de endereço
       window.history.replaceState({}, document.title, '/');
     }
 
-    const savedToken = tokenFromUrl || localStorage.getItem('ft_token');
-    const savedLogin = loginFromUrl || localStorage.getItem('ft_login');
+    const activeToken = tokenFromUrl || localStorage.getItem('ft_token');
 
-    // 2. Se houver token salvo, autentica e conecta o WebSocket
-    if (savedToken) {
-      setUserLogin(savedLogin || 'Aluno 42');
-      socket.auth = { token: savedToken };
+    if (activeToken) {
+      setToken(activeToken);
+      carregarStatusInscricao(activeToken);
+
+      socket.auth = { token: activeToken };
       socket.connect();
+    } else {
+      setCarregando(false);
     }
 
-    // 3. Listeners dos eventos do Socket.IO
-    const onConnect = () => {
-      setSocketConnected(true);
-      setSocketError(null);
-      addLog(`Conectado ao Socket.IO! ID: ${socket.id}`);
-    };
-
-    const onDisconnect = (reason) => {
-      setSocketConnected(false);
-      addLog(`Desconectado (${reason})`);
-    };
-
-    const onConnectError = (err) => {
-      setSocketConnected(false);
-      setSocketError(err.message);
-      addLog(`Erro de conexão: ${err.message}`);
-    };
-
-    const onPongTorneio = (data) => {
-      addLog(`Resposta do servidor: ${JSON.stringify(data)}`);
-    };
+    const onConnect = () => setSocketConnected(true);
+    const onDisconnect = () => setSocketConnected(false);
 
     socket.on('connect', onConnect);
     socket.on('disconnect', onDisconnect);
-    socket.on('connect_error', onConnectError);
-    socket.on('pong_torneio', onPongTorneio);
 
     return () => {
       socket.off('connect', onConnect);
       socket.off('disconnect', onDisconnect);
-      socket.off('connect_error', onConnectError);
-      socket.off('pong_torneio', onPongTorneio);
     };
   }, []);
 
@@ -80,170 +87,154 @@ export default function App() {
     localStorage.removeItem('ft_token');
     localStorage.removeItem('ft_login');
     socket.disconnect();
-    setUserLogin(null);
-    setSocketConnected(false);
-    setServerLogs([]);
+    setToken(null);
+    setUsuario(null);
+    setInscrito(false);
+    setInscricaoInfo(null);
+    setMensagemSucesso(null);
+    setErro(null);
   };
 
-  const handlePing = () => {
-    socket.emit('ping_torneio', { mensagem: 'Testando comunicação do front!' });
-    addLog('Enviado: ping_torneio');
+  const handleConfirmarInscricao = async () => {
+    if (!token || enviando) return;
+    setEnviando(true);
+    setErro(null);
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/inscricao`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErro(data.erro || 'Não foi possível concluir a inscrição.');
+        if (res.status === 409) await carregarStatusInscricao(token);
+        return;
+      }
+
+      setInscrito(true);
+      setInscricaoInfo(data.inscricao);
+      setMensagemSucesso(data.mensagem);
+    } catch {
+      setErro('Erro de rede ao tentar confirmar sua inscrição.');
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h1>🏎️ Torneio Mario Kart 42</h1>
-        <p style={styles.subtitle}>Painel inicial de autenticação e teste em tempo real</p>
+    <div style={styles.page}>
+      {/* Barra de Navegação Superior */}
+      <nav style={styles.navbar}>
+        <div style={styles.brand}>🏎️ Mario Kart 42</div>
 
-        {!userLogin ? (
-          <div style={styles.section}>
-            <p>Faça login com sua conta da Intra para acessar sua chave e horários.</p>
-            <button onClick={handleLogin} style={styles.primaryBtn}>
-              Entrar com a Intra 42
-            </button>
-          </div>
+        <div style={styles.navButtons}>
+          <button
+            onClick={() => setAbaAtiva('inscricao')}
+            style={abaAtiva === 'inscricao' ? styles.navBtnActive : styles.navBtn}
+          >
+            Inscrição
+          </button>
+          <button
+            onClick={() => setAbaAtiva('chaves')}
+            style={abaAtiva === 'chaves' ? styles.navBtnActive : styles.navBtn}
+          >
+            Chaves do Torneio
+          </button>
+        </div>
+
+        <div style={styles.navUser}>
+          {usuario ? `@${usuario.login}` : 'Visitante'}
+        </div>
+      </nav>
+
+      {/* Conteúdo da Tela Selecionada */}
+      <main style={styles.mainContent}>
+        {abaAtiva === 'inscricao' ? (
+          <InscricaoPage
+            usuario={usuario}
+            inscrito={inscrito}
+            inscricaoInfo={inscricaoInfo}
+            carregando={carregando}
+            enviando={enviando}
+            erro={erro}
+            mensagemSucesso={mensagemSucesso}
+            socketConnected={socketConnected}
+            onLogin={handleLogin}
+            onLogout={handleLogout}
+            onConfirmarInscricao={handleConfirmarInscricao}
+          />
         ) : (
-          <div style={styles.section}>
-            <div style={styles.statusBox}>
-              <p>
-                <strong>Piloto:</strong> {userLogin}
-              </p>
-              <p>
-                <strong>Status WebSocket:</strong>{' '}
-                <span style={{ color: socketConnected ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
-                  {socketConnected ? '● Online' : '● Offline'}
-                </span>
-              </p>
-              {socketError && <p style={styles.errorText}>Erro: {socketError}</p>}
-            </div>
-
-            <div style={styles.buttonGroup}>
-              <button
-                onClick={handlePing}
-                disabled={!socketConnected}
-                style={socketConnected ? styles.primaryBtn : styles.disabledBtn}
-              >
-                Testar Ping no Servidor
-              </button>
-
-              <button onClick={handleLogout} style={styles.secondaryBtn}>
-                Sair
-              </button>
-            </div>
-
-            <div style={styles.logBox}>
-              <strong>Logs do Socket:</strong>
-              {serverLogs.length === 0 ? (
-                <p style={styles.emptyLog}>Nenhum evento registrado ainda.</p>
-              ) : (
-                serverLogs.map((log, index) => (
-                  <div key={index} style={styles.logLine}>
-                    {log}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          <ChavesPage usuario={usuario} />
         )}
-      </div>
+      </main>
     </div>
   );
 }
 
 const styles = {
-  container: {
+  page: {
     minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#0f172a',
     color: '#f8fafc',
     fontFamily: 'system-ui, -apple-system, sans-serif',
-    padding: '20px',
-  },
-  card: {
-    width: '100%',
-    maxWidth: '500px',
-    backgroundColor: '#1e293b',
-    padding: '32px',
-    borderRadius: '12px',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.4)',
-  },
-  subtitle: {
-    color: '#94a3b8',
-    marginTop: '-8px',
-    marginBottom: '24px',
-    fontSize: '14px',
-  },
-  section: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
   },
-  statusBox: {
-    backgroundColor: '#0f172a',
-    padding: '16px',
-    borderRadius: '8px',
-    border: '1px solid #334155',
-  },
-  buttonGroup: {
+  navbar: {
     display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '14px 28px',
+    backgroundColor: '#020617',
+    borderBottom: '1px solid #1e293b',
+    flexWrap: 'wrap',
     gap: '12px',
   },
-  primaryBtn: {
-    flex: 1,
-    padding: '12px 16px',
-    backgroundColor: '#00babc',
-    color: '#0f172a',
-    border: 'none',
-    borderRadius: '8px',
+  brand: {
     fontWeight: 'bold',
-    cursor: 'pointer',
-    fontSize: '15px',
+    fontSize: '18px',
+    color: '#00babc',
   },
-  disabledBtn: {
-    flex: 1,
-    padding: '12px 16px',
-    backgroundColor: '#475569',
-    color: '#94a3b8',
-    border: 'none',
+  navButtons: {
+    display: 'flex',
+    gap: '10px',
+  },
+  navBtn: {
+    padding: '8px 16px',
     borderRadius: '8px',
-    fontWeight: 'bold',
-    cursor: 'not-allowed',
-    fontSize: '15px',
-  },
-  secondaryBtn: {
-    padding: '12px 16px',
-    backgroundColor: 'transparent',
-    color: '#f87171',
-    border: '1px solid #f87171',
-    borderRadius: '8px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-  },
-  errorText: {
-    color: '#f87171',
-    fontSize: '13px',
-    marginTop: '8px',
-  },
-  logBox: {
-    backgroundColor: '#020617',
-    padding: '12px',
-    borderRadius: '8px',
-    fontSize: '12px',
-    fontFamily: 'monospace',
-    maxHeight: '180px',
-    overflowY: 'auto',
     border: '1px solid #334155',
+    backgroundColor: 'transparent',
+    color: '#94a3b8',
+    fontWeight: '600',
+    cursor: 'pointer',
+    fontSize: '14px',
   },
-  emptyLog: {
-    color: '#64748b',
-    marginTop: '8px',
+  navBtnActive: {
+    padding: '8px 16px',
+    borderRadius: '8px',
+    border: '1px solid #00babc',
+    backgroundColor: 'rgba(0, 186, 188, 0.15)',
+    color: '#00babc',
+    fontWeight: 'bold',
+    cursor: 'pointer',
+    fontSize: '14px',
   },
-  logLine: {
-    marginTop: '6px',
-    color: '#38bdf8',
-    wordBreak: 'break-all',
+  navUser: {
+    fontSize: '13px',
+    color: '#cbd5e1',
+    fontFamily: 'monospace',
+  },
+  mainContent: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '28px 20px',
   },
 };
