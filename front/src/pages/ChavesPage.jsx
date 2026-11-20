@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { socket } from '../services/socket';
 
-const BACKEND_URL = 'http://localhost:3000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 const CORES_SLOTS = [
   { bg: 'rgba(244, 114, 182, 0.16)', border: '#f472b6' },

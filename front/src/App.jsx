@@ -3,7 +3,7 @@ import { socket } from './services/socket';
 import InscricaoPage from './pages/InscricaoPage';
 import ChavesPage from './pages/ChavesPage';
 
-const BACKEND_URL = 'http://localhost:3000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
 export default function App() {
   const [abaAtiva, setAbaAtiva] = useState('inscricao'); // 'inscricao' | 'chaves'
