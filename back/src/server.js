@@ -1,29 +1,96 @@
-const path = require('path');
-require('dotenv').config({ path: path.resolve(__dirname, '../secrets/.env') });
+require('dotenv').config();
 const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const cors = require('cors');
 const crypto = require('crypto');
 const supabase = require('./supabase');
 
 const app = express();
-app.use(express.json());
+const server = http.createServer(app);
 
 const {
   FT_CLIENT_ID,
   FT_CLIENT_SECRET,
   FT_REDIRECT_URI,
+  FRONTEND_URL = 'http://localhost:5173',
   PORT = 3000,
 } = process.env;
 
-const pendingStates = new Set();
+// Configuração do CORS para rotas HTTP do Express
+app.use(cors({
+  origin: FRONTEND_URL,
+  credentials: true,
+}));
+app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send(`
-    <h2>Torneio Mario Kart 42 - Login</h2>
-    <a href="/login">Entrar com a Intra 42</a>
-  `);
+// Configuração do Socket.IO compatível com transports: ['websocket'] do seu front
+const io = new Server(server, {
+  cors: {
+    origin: FRONTEND_URL,
+    methods: ['GET', 'POST'],
+  },
+  transports: ['websocket'],
 });
 
-// PASSO 1: Redireciona para a Intra
+// Middleware de Autenticação do Socket: identifica quem é o aluno pelo token
+io.use(async (socket, next) => {
+  const token = socket.handshake.auth?.token;
+
+  if (!token) {
+    return next(new Error('Autenticação necessária: token não enviado.'));
+  }
+
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('id, intra_id, login, display_name, avatar_url, is_admin')
+      .eq('access_token', token)
+      .single();
+
+    if (error || !user) {
+      return next(new Error('Token inválido ou usuário não encontrado.'));
+    }
+
+    // Anexa os dados do aluno à instância do socket
+    socket.user = user;
+    next();
+  } catch (err) {
+    next(new Error('Erro interno ao validar sessão no socket.'));
+  }
+});
+
+// Eventos do Socket.IO quando o aluno conecta
+io.on('connection', (socket) => {
+  const { login, display_name } = socket.user;
+  console.log(`[Socket] Aluno conectado: ${login} (${socket.id})`);
+
+  // Sala geral do torneio (para atualizações de chaves/placares ao vivo)
+  socket.join('torneio_geral');
+
+  // Sala individual do aluno (para avisar quando a partida dele for começar)
+  socket.join(`user:${login}`);
+
+  // Exemplo de evento que o front pode emitir para testar a conexão
+  socket.on('ping_torneio', (dados) => {
+    socket.emit('pong_torneio', {
+      mensagem: `Conexão ativa, ${display_name}!`,
+      seu_login: login,
+      recebido: dados,
+    });
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log(`[Socket] Aluno desconectado: ${login} (${reason})`);
+  });
+});
+
+// ============================================================================
+// ROTAS DE AUTENTICAÇÃO OAUTH2 DA 42
+// ============================================================================
+
+const pendingStates = new Set();
+
 app.get('/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   pendingStates.add(state);
@@ -38,7 +105,6 @@ app.get('/login', (req, res) => {
   res.redirect(authorizeUrl.toString());
 });
 
-// PASSO 2: Callback -> Pega Token -> Identifica Aluno -> Salva no Supabase
 app.get('/callback', async (req, res) => {
   const { code, state } = req.query;
 
@@ -52,7 +118,6 @@ app.get('/callback', async (req, res) => {
   }
 
   try {
-    // 1. Troca o code pelo token na API da 42
     const tokenRes = await fetch('https://api.intra.42.fr/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -70,7 +135,6 @@ app.get('/callback', async (req, res) => {
       return res.status(tokenRes.status).json({ erro: 'Erro ao obter token', detalhes: tokenData });
     }
 
-    // 2. Identifica o aluno na API da 42
     const meRes = await fetch('https://api.intra.42.fr/v2/me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
@@ -98,24 +162,26 @@ app.get('/callback', async (req, res) => {
         },
         { onConflict: 'intra_id' }
       )
-      .select('id, intra_id, login, display_name, avatar_url, is_admin, created_at')
+      .select('id, intra_id, login, display_name, avatar_url, is_admin')
       .single();
 
     if (dbError) {
-      console.error('Erro ao salvar no Supabase:', dbError);
-      return res.status(500).json({ erro: 'Falha ao salvar usuário no banco', detalhe: dbError.message });
+      return res.status(500).json({ erro: 'Falha ao salvar usuário', detalhe: dbError.message });
     }
 
-    res.json({
-      mensagem: 'Login realizado e salvo no Supabase com sucesso!',
-      usuario: usuarioSalvo,
-    });
+    // Redireciona de volta para o React levando o token para o front conectar o socket
+    const redirectFront = new URL(`${FRONTEND_URL}/auth/callback`);
+    redirectFront.searchParams.set('token', tokenData.access_token);
+    redirectFront.searchParams.set('login', usuarioSalvo.login);
+
+    res.redirect(redirectFront.toString());
   } catch (err) {
-    console.error('Erro no fluxo:', err);
-    res.status(500).json({ erro: 'Erro interno no servidor', detalhe: err.message });
+    console.error('Erro no callback:', err);
+    res.status(500).json({ erro: 'Erro interno no servidor' });
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando em http://localhost:${PORT}`);
+// IMPORTANTE: Usar server.listen em vez de app.listen
+server.listen(PORT, () => {
+  console.log(`Servidor HTTP + WebSocket rodando em http://localhost:${PORT}`);
 });

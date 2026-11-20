@@ -8,3 +8,22 @@ export const socket = io(SOCKET_URL, {
   reconnectionAttempts: 5, // Limita tentativas caso o back-end esteja offline
   transports: ['websocket'], // Força WebSocket direto, evitando polling desnecessário
 });
+
+// Exemplo de como conectar após o login da 42 redirecionar para o React:
+export function conectarSocketComToken(token) {
+  socket.auth = { token };
+  socket.connect();
+
+  socket.on('connect', () => {
+    console.log('Conectado ao servidor do torneio! ID:', socket.id);
+    socket.emit('ping_torneio', { status: 'pronto para correr' });
+  });
+
+  socket.on('pong_torneio', (resposta) => {
+    console.log('Resposta do servidor:', resposta);
+  });
+
+  socket.on('connect_error', (err) => {
+    console.error('Falha na autenticação do socket:', err.message);
+  });
+}
