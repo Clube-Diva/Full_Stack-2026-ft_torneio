@@ -14,7 +14,7 @@ const {
   FT_CLIENT_ID,
   FT_CLIENT_SECRET,
   FT_REDIRECT_URI,
-  FRONTEND_URL = 'http://localhost:5173',
+  FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173',
   PORT = process.env.PORT || 3000,
 } = process.env;
 
