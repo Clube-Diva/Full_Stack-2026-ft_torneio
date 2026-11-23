@@ -157,7 +157,9 @@ app.get('/callback', async (req, res) => {
 
     const tokenRes = await fetch('https://api.intra.42.fr/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent': 'Mozilla/5.0 (Node.js Backend)'
+       },
       body: tokenParams,
     });
 
