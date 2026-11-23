@@ -90,13 +90,12 @@ io.on('connection', (socket) => {
 // ROTAS DE AUTENTICAÇÃO OAUTH2 DA 42
 // ============================================================================
 
-const pendingStates = new Map();
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 app.get('/login', (req, res) => {
-  const state = crypto.randomBytes(16).toString('hex');
-  pendingStates.set(state, Date.now());
-  setTimeout(() => pendingStates.delete(state), OAUTH_STATE_TTL_MS);
+  const payload = Date.now().toString();
+  const signature = crypto.createHmac('sha256', FT_CLIENT_SECRET).update(payload).digest('hex');
+  const state = `${payload}.${signature}`;
 
   const authorizeUrl = new URL('https://api.intra.42.fr/oauth/authorize');
   authorizeUrl.searchParams.set('client_id', FT_CLIENT_ID);
@@ -123,9 +122,21 @@ app.get('/callback', async (req, res) => {
   };
 
   // 1. Validação do State
-  const stateCreatedAt = typeof state === 'string' ? pendingStates.get(state) : undefined;
-  pendingStates.delete(state);
-  if (!state || !stateCreatedAt || Date.now() - stateCreatedAt > OAUTH_STATE_TTL_MS) {
+  const stateParts = typeof state === 'string' ? state.split('.') : [];
+  const [payload, signature, ...extraParts] = stateParts;
+  const timestamp = Number(payload);
+  const signatureIsWellFormed = /^[a-f0-9]{64}$/.test(signature || '');
+  const timestampIsValid = /^\d+$/.test(payload || '') && Number.isSafeInteger(timestamp);
+  let signatureIsValid = false;
+
+  if (timestampIsValid && signatureIsWellFormed && extraParts.length === 0) {
+    const expectedSignature = crypto.createHmac('sha256', FT_CLIENT_SECRET).update(payload).digest();
+    const receivedSignature = Buffer.from(signature, 'hex');
+    signatureIsValid = crypto.timingSafeEqual(expectedSignature, receivedSignature);
+  }
+
+  const stateAge = Date.now() - timestamp;
+  if (!signatureIsValid || stateAge < 0 || stateAge > OAUTH_STATE_TTL_MS) {
     return redirecionarComErro('state_invalido_ou_expirado');
   }
 
