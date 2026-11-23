@@ -92,20 +92,26 @@ io.on('connection', (socket) => {
 // ============================================================================
 
 const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
-
+// Exemplo correto da rota que inicia o login
 app.get('/login', (req, res) => {
-  const payload = Date.now().toString();
-  const signature = crypto.createHmac('sha256', FT_CLIENT_SECRET).update(payload).digest('hex');
-  const state = `${payload}.${signature}`;
+  try {
+    const INTRA_API = process.env.INTRA_API_BASE || 'https://api.intra.42.fr';
 
-  const authorizeUrl = new URL(INTRA_API+'/oauth/authorize');
-  authorizeUrl.searchParams.set('client_id', FT_CLIENT_ID);
-  authorizeUrl.searchParams.set('redirect_uri', FT_REDIRECT_URI);
-  authorizeUrl.searchParams.set('response_type', 'code');
-  authorizeUrl.searchParams.set('scope', 'public');
-  authorizeUrl.searchParams.set('state', state);
+    // 1. Gera o state assinado via HMAC com o timestamp atual
+    const payload = Date.now().toString();
+    const signature = crypto.createHmac('sha256', FT_CLIENT_SECRET).update(payload).digest('hex');
+    const state = `${payload}.${signature}`;
 
-  res.redirect(authorizeUrl.toString());
+    // 2. Monta a URL de autorização da Intra (ou via Worker do Cloudflare)
+    const authUrl = `${INTRA_API}/oauth/authorize?client_id=${FT_CLIENT_ID}&redirect_uri=${encodeURIComponent(FT_REDIRECT_URI)}&response_type=code&scope=public&state=${state}`;
+
+    // 3. Redireciona o usuário para a página de login da Intra 42
+    return res.redirect(authUrl);
+
+  } catch (err) {
+    console.error("Erro ao gerar URL de login:", err);
+    return res.status(500).send("Erro interno ao iniciar o login.");
+  }
 });
 
 app.get('/callback', async (req, res) => {
