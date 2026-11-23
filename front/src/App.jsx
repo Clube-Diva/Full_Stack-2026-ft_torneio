@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { socket } from './services/socket';
 import InscricaoPage from './pages/InscricaoPage';
 import ChavesPage from './pages/ChavesPage';
+import { SocketStatus } from './components/SocketStatus';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000';
 
@@ -173,6 +174,7 @@ export default function App() {
           <ChavesPage usuario={usuario} />
         )}
       </main>
+      <SocketStatus />
     </div>
   );
 }
