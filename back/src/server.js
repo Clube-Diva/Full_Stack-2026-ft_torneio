@@ -108,7 +108,7 @@ app.get('/login', (req, res) => {
 
 app.get('/callback', async (req, res) => {
   const { code, state } = req.query;
-
+  console.log("chamou callback")
   if (!state || !pendingStates.has(state)) {
     return res.status(403).json({ erro: 'State inválido ou expirado.' });
   }
@@ -165,6 +165,7 @@ app.get('/callback', async (req, res) => {
       )
       .select('id, intra_id, login, display_name, avatar_url, is_admin')
       .single();
+  console.log(""+ avatarUrl);
 
     if (dbError) {
       return res.status(500).json({ erro: 'Falha ao salvar usuário', detalhe: dbError.message });
@@ -174,7 +175,6 @@ app.get('/callback', async (req, res) => {
     const redirectFront = new URL(`${FRONTEND_URL}/auth/callback`);
     redirectFront.searchParams.set('token', tokenData.access_token);
     redirectFront.searchParams.set('login', usuarioSalvo.login);
-
     res.redirect(redirectFront.toString());
   } catch (err) {
     console.error('Erro no callback:', err);
