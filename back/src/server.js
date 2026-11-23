@@ -96,6 +96,7 @@ const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 app.get('/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   pendingStates.set(state, Date.now());
+  setTimeout(() => pendingStates.delete(state), OAUTH_STATE_TTL_MS);
 
   const authorizeUrl = new URL('https://api.intra.42.fr/oauth/authorize');
   authorizeUrl.searchParams.set('client_id', FT_CLIENT_ID);
