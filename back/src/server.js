@@ -167,6 +167,13 @@ app.get('/callback', async (req, res) => {
       return redirecionarComErro('erro_token_intra');
     }
 
+    const contentType = tokenRes.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const textoErroHtml = await tokenRes.text();
+      console.error("A Intra 42 retornou HTML em vez de JSON:", textoErroHtml);
+      return redirecionarComErro('erro_token_intra');
+    }
+
     // 4. Busca dados do perfil do aluno
     const meRes = await fetch('https://api.intra.42.fr/v2/me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
