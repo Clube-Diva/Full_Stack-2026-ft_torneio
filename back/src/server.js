@@ -17,7 +17,8 @@ const {
   PORT = process.env.PORT || 3000,
 } = process.env;
 const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
-
+const INTRA_API = process.env.INTRA_API_BASE || 'https://api.intra.42.fr';
+const authUrl = `${INTRA_API}/oauth/authorize?client_id=${FT_CLIENT_ID}&redirect_uri=${encodeURIComponent(FT_REDIRECT_URI)}&response_type=code&scope=public&state=${state}`;
 // Configuração do CORS para rotas HTTP do Express
 app.use(cors({
   origin: FRONTEND_URL,
@@ -97,7 +98,7 @@ app.get('/login', (req, res) => {
   const signature = crypto.createHmac('sha256', FT_CLIENT_SECRET).update(payload).digest('hex');
   const state = `${payload}.${signature}`;
 
-  const authorizeUrl = new URL('https://api.intra.42.fr/oauth/authorize');
+  const authorizeUrl = new URL(INTRA_API+'/oauth/authorize');
   authorizeUrl.searchParams.set('client_id', FT_CLIENT_ID);
   authorizeUrl.searchParams.set('redirect_uri', FT_REDIRECT_URI);
   authorizeUrl.searchParams.set('response_type', 'code');
@@ -106,7 +107,6 @@ app.get('/login', (req, res) => {
 
   res.redirect(authorizeUrl.toString());
 });
-
 
 app.get('/callback', async (req, res) => {
   const { code, state } = req.query;
@@ -145,6 +145,9 @@ app.get('/callback', async (req, res) => {
   }
 
   try {
+    // Define a base da API (Usa o Cloudflare Worker se configurado, senão usa a oficial)
+    const INTRA_API = process.env.INTRA_API_BASE || 'https://api.intra.42.fr';
+
     // 3. Troca do Code pelo Token da Intra 42
     const tokenParams = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -154,7 +157,7 @@ app.get('/callback', async (req, res) => {
       redirect_uri: FT_REDIRECT_URI,
     });
 
-    const tokenRes = await fetch('https://api.intra.42.fr/oauth/token', {
+    const tokenRes = await fetch(`${INTRA_API}/oauth/token`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -172,7 +175,7 @@ app.get('/callback', async (req, res) => {
       tokenData = JSON.parse(tokenRawText);
     } catch (e) {
       console.error("A Intra 42 retornou HTML/Texto em vez de JSON no token. Status:", tokenRes.status);
-      console.error("Conteúdo recebido:", tokenRawText.slice(0, 500)); // Mostra os primeiros 500 caracteres do HTML
+      console.error("Conteúdo recebido:", tokenRawText.slice(0, 500));
       return redirecionarComErro('erro_token_intra');
     }
 
@@ -182,11 +185,11 @@ app.get('/callback', async (req, res) => {
     }
 
     // 4. Busca dados do perfil do aluno
-    const meRes = await fetch('https://api.intra.42.fr/v2/me', {
+    const meRes = await fetch(`${INTRA_API}/v2/me`, {
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Node.js Backend)'
+        'User-Agent': 'Login Clube D.I.V.A'
       },
     });
 
