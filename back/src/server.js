@@ -108,7 +108,6 @@ app.get('/login', (req, res) => {
 });
 
 
-
 app.get('/callback', async (req, res) => {
   const { code, state } = req.query;
   console.log("Chamou callback | state:", state ? "presente" : "ausente");
@@ -157,37 +156,57 @@ app.get('/callback', async (req, res) => {
 
     const tokenRes = await fetch('https://api.intra.42.fr/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
         'User-Agent': 'Mozilla/5.0 (Node.js Backend)'
-       },
+      },
       body: tokenParams,
     });
 
-    const tokenData = await tokenRes.json();
+    // Lê a resposta como texto primeiro para evitar crash caso venha HTML
+    const tokenRawText = await tokenRes.text();
+    let tokenData;
+
+    try {
+      tokenData = JSON.parse(tokenRawText);
+    } catch (e) {
+      console.error("A Intra 42 retornou HTML/Texto em vez de JSON no token. Status:", tokenRes.status);
+      console.error("Conteúdo recebido:", tokenRawText.slice(0, 500)); // Mostra os primeiros 500 caracteres do HTML
+      return redirecionarComErro('erro_token_intra');
+    }
+
     if (!tokenRes.ok) {
       console.error("Detalhes erro token Intra:", tokenData);
       return redirecionarComErro('erro_token_intra');
     }
 
-    const contentType = tokenRes.headers.get('content-type');
-    if (!contentType || !contentType.includes('application/json')) {
-      const textoErroHtml = await tokenRes.text();
-      console.error("A Intra 42 retornou HTML em vez de JSON:", textoErroHtml);
-      return redirecionarComErro('erro_token_intra');
-    }
-
     // 4. Busca dados do perfil do aluno
     const meRes = await fetch('https://api.intra.42.fr/v2/me', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Accept': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Node.js Backend)'
+      },
     });
 
-    const meData = await meRes.json();
+    const meRawText = await meRes.text();
+    let meData;
+
+    try {
+      meData = JSON.parse(meRawText);
+    } catch (e) {
+      console.error("A Intra 42 retornou HTML/Texto em vez de JSON no /v2/me. Status:", meRes.status);
+      return redirecionarComErro('erro_perfil_intra');
+    }
+
     if (!meRes.ok) {
+      console.error("Erro ao buscar perfil /v2/me:", meData);
       return redirecionarComErro('erro_perfil_intra');
     }
 
     // 5. Salva ou atualiza no Supabase
-    const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + (tokenData.expires_in || 7200) * 1000).toISOString();
     const avatarUrl = meData.image?.versions?.medium || meData.image?.link || null;
 
     const { data: usuarioSalvo, error: dbError } = await supabase
@@ -196,7 +215,7 @@ app.get('/callback', async (req, res) => {
         {
           intra_id: meData.id,
           login: meData.login,
-          display_name: meData.usual_full_name || meData.displayname,
+          display_name: meData.usual_full_name || meData.displayname || meData.login,
           avatar_url: avatarUrl,
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
@@ -208,15 +227,16 @@ app.get('/callback', async (req, res) => {
       .select('id, intra_id, login, display_name, avatar_url, is_admin')
       .single();
 
-    if (dbError) {
-      console.error("Erro Supabase:", dbError.message);
+    if (dbError || !usuarioSalvo) {
+      console.error("Erro Supabase:", dbError?.message || "Usuário não retornado");
       return redirecionarComErro('erro_banco_dados');
     }
 
     console.log("Login concluído com sucesso para:", usuarioSalvo.login);
 
-    // 6. Sucesso! Redireciona para o frontend (ajustado para a raiz ou /auth/callback conforme sua rota)
-    const redirectFront = new URL(`${FRONTEND_URL}/auth/callback`);
+    // 6. Sucesso! Redireciona para o frontend de forma segura
+    const baseFrontUrl = FRONTEND_URL.replace(/\/$/, '');
+    const redirectFront = new URL(`${baseFrontUrl}/auth/callback`);
     redirectFront.searchParams.set('token', tokenData.access_token);
     redirectFront.searchParams.set('login', usuarioSalvo.login);
     return res.redirect(redirectFront.toString());
@@ -226,7 +246,6 @@ app.get('/callback', async (req, res) => {
     return redirecionarComErro('erro_interno_servidor');
   }
 });
-
 
 async function autenticarAluno(req, res, next) {
   const authHeader = req.headers.authorization;
