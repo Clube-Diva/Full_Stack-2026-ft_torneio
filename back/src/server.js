@@ -165,7 +165,7 @@ app.get('/callback', async (req, res) => {
       )
       .select('id, intra_id, login, display_name, avatar_url, is_admin')
       .single();
-  console.log(""+ avatarUrl);
+  console.log(""+ meData);
 
     if (dbError) {
       return res.status(500).json({ erro: 'Falha ao salvar usuário', detalhe: dbError.message });
