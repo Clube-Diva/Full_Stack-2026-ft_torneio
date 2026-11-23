@@ -108,19 +108,33 @@ app.get('/login', (req, res) => {
   res.redirect(authorizeUrl.toString());
 });
 
+
+
 app.get('/callback', async (req, res) => {
   const { code, state } = req.query;
-  console.log("chamou callback")
+  console.log("Chamou callback | state:", state ? "presente" : "ausente");
+
+  // Função auxiliar para mandar o usuário de volta para a Home em caso de falha
+  const redirecionarComErro = (motivo) => {
+    console.error("Falha no login OAuth:", motivo);
+    const urlErro = new URL(FRONTEND_URL);
+    urlErro.searchParams.set('login_error', motivo);
+    return res.redirect(urlErro.toString());
+  };
+
+  // 1. Validação do State
   if (!state || !pendingStates.has(state)) {
-    return res.status(403).json({ erro: 'State inválido ou expirado.' });
+    return redirecionarComErro('state_invalido_ou_expirado');
   }
   pendingStates.delete(state);
 
+  // 2. Validação do Code
   if (!code) {
-    return res.status(400).json({ erro: 'Código de autorização ausente.' });
+    return redirecionarComErro('codigo_ausente');
   }
 
   try {
+    // 3. Troca do Code pelo Token da Intra 42
     const tokenRes = await fetch('https://api.intra.42.fr/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -135,18 +149,21 @@ app.get('/callback', async (req, res) => {
 
     const tokenData = await tokenRes.json();
     if (!tokenRes.ok) {
-      return res.status(tokenRes.status).json({ erro: 'Erro ao obter token', detalhes: tokenData });
+      console.error("Detalhes erro token Intra:", tokenData);
+      return redirecionarComErro('erro_token_intra');
     }
 
+    // 4. Busca dados do perfil do aluno
     const meRes = await fetch('https://api.intra.42.fr/v2/me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
 
     const meData = await meRes.json();
     if (!meRes.ok) {
-      return res.status(meRes.status).json({ erro: 'Erro ao buscar perfil do aluno' });
+      return redirecionarComErro('erro_perfil_intra');
     }
 
+    // 5. Salva ou atualiza no Supabase
     const expiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
     const avatarUrl = meData.image?.versions?.medium || meData.image?.link || null;
 
@@ -167,22 +184,26 @@ app.get('/callback', async (req, res) => {
       )
       .select('id, intra_id, login, display_name, avatar_url, is_admin')
       .single();
-  console.log(""+ meData);
 
     if (dbError) {
-      return res.status(500).json({ erro: 'Falha ao salvar usuário', detalhe: dbError.message });
+      console.error("Erro Supabase:", dbError.message);
+      return redirecionarComErro('erro_banco_dados');
     }
 
-    // Redireciona de volta para o React levando o token para o front conectar o socket
+    console.log("Login concluído com sucesso para:", usuarioSalvo.login);
+
+    // 6. Sucesso! Redireciona para o frontend (ajustado para a raiz ou /auth/callback conforme sua rota)
     const redirectFront = new URL(`${FRONTEND_URL}/auth/callback`);
     redirectFront.searchParams.set('token', tokenData.access_token);
     redirectFront.searchParams.set('login', usuarioSalvo.login);
-    res.redirect(redirectFront.toString());
+    return res.redirect(redirectFront.toString());
+
   } catch (err) {
-    console.error('Erro no callback:', err);
-    res.status(500).json({ erro: 'Erro interno no servidor' });
+    console.error('Erro crítico no callback:', err);
+    return redirecionarComErro('erro_interno_servidor');
   }
 });
+
 
 async function autenticarAluno(req, res, next) {
   const authHeader = req.headers.authorization;
