@@ -159,7 +159,7 @@ app.get('/callback', async (req, res) => {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Node.js Backend)'
+        'User-Agent': 'Login Clube D.I.V.A'
       },
       body: tokenParams,
     });
