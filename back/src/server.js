@@ -95,6 +95,8 @@ const pendingStates = new Set();
 app.get('/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
   pendingStates.add(state);
+  console.log("\n"+FT_CLIENT_ID);
+  console.log("\n"+FT_REDIRECT_URI);
 
   const authorizeUrl = new URL('https://api.intra.42.fr/oauth/authorize');
   authorizeUrl.searchParams.set('client_id', FT_CLIENT_ID);
