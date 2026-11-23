@@ -14,9 +14,9 @@ const {
   FT_CLIENT_ID,
   FT_CLIENT_SECRET,
   FT_REDIRECT_URI,
-  FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173',
   PORT = process.env.PORT || 3000,
 } = process.env;
+const FRONTEND_URL = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
 
 // Configuração do CORS para rotas HTTP do Express
 app.use(cors({
@@ -90,13 +90,12 @@ io.on('connection', (socket) => {
 // ROTAS DE AUTENTICAÇÃO OAUTH2 DA 42
 // ============================================================================
 
-const pendingStates = new Set();
+const pendingStates = new Map();
+const OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 
 app.get('/login', (req, res) => {
   const state = crypto.randomBytes(16).toString('hex');
-  pendingStates.add(state);
-  console.log("\n"+FT_CLIENT_ID);
-  console.log("\n"+FT_REDIRECT_URI);
+  pendingStates.set(state, Date.now());
 
   const authorizeUrl = new URL('https://api.intra.42.fr/oauth/authorize');
   authorizeUrl.searchParams.set('client_id', FT_CLIENT_ID);
@@ -123,10 +122,11 @@ app.get('/callback', async (req, res) => {
   };
 
   // 1. Validação do State
-  if (!state || !pendingStates.has(state)) {
+  const stateCreatedAt = typeof state === 'string' ? pendingStates.get(state) : undefined;
+  pendingStates.delete(state);
+  if (!state || !stateCreatedAt || Date.now() - stateCreatedAt > OAUTH_STATE_TTL_MS) {
     return redirecionarComErro('state_invalido_ou_expirado');
   }
-  pendingStates.delete(state);
 
   // 2. Validação do Code
   if (!code) {
@@ -135,16 +135,18 @@ app.get('/callback', async (req, res) => {
 
   try {
     // 3. Troca do Code pelo Token da Intra 42
+    const tokenParams = new URLSearchParams({
+      grant_type: 'authorization_code',
+      client_id: FT_CLIENT_ID,
+      client_secret: FT_CLIENT_SECRET,
+      code,
+      redirect_uri: FT_REDIRECT_URI,
+    });
+
     const tokenRes = await fetch('https://api.intra.42.fr/oauth/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'authorization_code',
-        client_id: FT_CLIENT_ID,
-        client_secret: FT_CLIENT_SECRET,
-        code,
-        redirect_uri: FT_REDIRECT_URI,
-      }),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenParams,
     });
 
     const tokenData = await tokenRes.json();
